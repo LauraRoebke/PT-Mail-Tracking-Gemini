@@ -77,22 +77,6 @@
                     </div>
                 </div>
 
-                <!-- Peak KPI Header Cards -->
-                <div class="kpi-grid">
-                    <div class="kpi-card">
-                        <div class="kpi-title">VERTRIEB & AFTERSALES (PEAK)</div>
-                        <div class="kpi-value" id="sum-vertrieb">Peak heute: 0</div>
-                    </div>
-                    <div class="kpi-card">
-                        <div class="kpi-title">EINKAUF (PEAK)</div>
-                        <div class="kpi-value" id="sum-einkauf">Peak heute: 0</div>
-                    </div>
-                    <div class="kpi-card">
-                        <div class="kpi-title">RECHNUNGEN (PEAK)</div>
-                        <div class="kpi-value" id="sum-rechnungen">Peak heute: 0</div>
-                    </div>
-                </div>
-
                 <!-- Tracking Tabelle -->
                 <div class="table-responsive">
                     <table class="tracking-table">
@@ -107,6 +91,15 @@
                         <tbody id="hourly-rows">
                             <!-- Wird per JS befüllt -->
                         </tbody>
+                        <!-- Kompakte Peak-Fußzeile im klassischen Türkis-Look -->
+                        <tfoot>
+                            <tr style="background: rgba(26, 187, 187, 0.08); font-weight: 600; border-top: 2px solid var(--accent-teal);">
+                                <td style="color: var(--accent-teal); padding: 12px 15px;">Tagesdurchschnitt / Stand</td>
+                                <td id="sum-vertrieb" style="color: var(--accent-teal); padding: 12px 15px;">Peak heute: 0</td>
+                                <td id="sum-einkauf" style="color: var(--accent-teal); padding: 12px 15px;">Peak heute: 0</td>
+                                <td id="sum-rechnungen" style="color: var(--accent-teal); padding: 12px 15px;">Peak heute: 0</td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
 
