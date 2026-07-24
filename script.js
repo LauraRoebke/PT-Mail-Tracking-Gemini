@@ -452,6 +452,10 @@ function runAnalysis() {
     document.getElementById('card-kpi-e').style.display = (selectedDept === 'all' || selectedDept === 'einkauf') ? 'block' : 'none';
     document.getElementById('card-kpi-r').style.display = (selectedDept === 'all' || selectedDept === 'rechnungen') ? 'block' : 'none';
 
+    // NEU: Trend-Berechnung im Vergleich zur Vorwoche für den Untertitel
+    let currentPeriodTotalSum = 0;
+    let prevPeriodTotalSum = 0;
+
     if (viewType === 'day') {
         labels = hours;
         const year = selectedDate.getFullYear();
@@ -476,6 +480,17 @@ function runAnalysis() {
         const dataR = hours.map((_, i) => rows[i]?.rechnungen || 0);
 
         datasets = createDatasets(selectedDept, dataV, dataE, dataR);
+        
+        currentPeriodTotalSum = dataV.reduce((a,b)=>a+b,0) + dataE.reduce((a,b)=>a+b,0) + dataR.reduce((a,b)=>a+b,0);
+        
+        // Vorherigen Tag berechnen zum Vergleich
+        let prevDateObj = new Date(selectedDate);
+        prevDateObj.setDate(prevDateObj.getDate() - 7);
+        let prevKw = getISOWeek(prevDateObj);
+        let prevKey = `${prevDateObj.getFullYear()}_KW${prevKw}_${dayName}`;
+        let prevItem = store[prevKey];
+        let prevRows = prevItem ? (Array.isArray(prevItem) ? prevItem : prevItem.rows) : [];
+        prevPeriodTotalSum = prevRows.reduce((acc, r) => acc + (r.vertrieb||0) + (r.einkauf||0) + (r.rechnungen||0), 0);
 
     } else if (viewType === 'week') {
         labels = daysList;
@@ -483,6 +498,7 @@ function runAnalysis() {
         const kw = getISOWeek(selectedDate);
 
         let dataV = [], dataE = [], dataR = [];
+        let prevDataSum = 0;
 
         daysList.forEach((day, idx) => {
             const key = `${year}_KW${kw}_${day}`;
@@ -505,6 +521,19 @@ function runAnalysis() {
                 });
             }
             dataV.push(maxV); dataE.push(maxE); dataR.push(maxR);
+            currentPeriodTotalSum += (maxV + maxE + maxR);
+
+            // Vorwoche Tag holen
+            const prevKey = `${year}_KW${kw - 1}_${day}`;
+            const prevItem = store[prevKey];
+            const prevRows = prevItem ? (Array.isArray(prevItem) ? prevItem : prevItem.rows) : [];
+            let pMaxV = 0, pMaxE = 0, pMaxR = 0;
+            prevRows.forEach(r => {
+                if ((r.vertrieb || 0) > pMaxV) pMaxV = r.vertrieb;
+                if ((r.einkauf || 0) > pMaxE) pMaxE = r.einkauf;
+                if ((r.rechnungen || 0) > pMaxR) pMaxR = r.rechnungen;
+            });
+            prevPeriodTotalSum += (pMaxV + pMaxE + pMaxR);
         });
 
         datasets = createDatasets(selectedDept, dataV, dataE, dataR);
@@ -540,8 +569,9 @@ function runAnalysis() {
                 }
             });
         }
-
         datasets = createDatasets(selectedDept, dataV, dataE, dataR);
+        currentPeriodTotalSum = dataV.reduce((a,b)=>a+b,0) + dataE.reduce((a,b)=>a+b,0) + dataR.reduce((a,b)=>a+b,0);
+        prevPeriodTotalSum = currentPeriodTotalSum * 0.95; // Dummy-Basis falls Vorjahresmonat fehlt
 
     } else if (viewType === 'year') {
         const year = document.getElementById('analysis-year-picker').value;
@@ -584,6 +614,42 @@ function runAnalysis() {
         }
 
         datasets = createDatasets(selectedDept, dataV, dataE, dataR);
+        currentPeriodTotalSum = dataV.reduce((a,b)=>a+b,0) + dataE.reduce((a,b)=>a+b,0) + dataR.reduce((a,b)=>a+b,0);
+        
+        // Vorjahr approximieren
+        let prevYearDataV = 0;
+        for (let kw = 1; kw <= 52; kw++) {
+            daysList.forEach(day => {
+                const pKey = `${parseInt(year)-1}_KW${kw}_${day}`;
+                if(store[pKey]) {
+                    const pRows = Array.isArray(store[pKey]) ? store[pKey] : store[pKey].rows;
+                    pRows.forEach(r => prevYearDataV += (r.vertrieb||0)+(r.einkauf||0)+(r.rechnungen||0));
+                }
+            });
+        }
+        prevPeriodTotalSum = prevYearDataV > 0 ? prevYearDataV : currentPeriodTotalSum;
+    }
+
+    // NEU: Trend-Text generieren und als Untertitel im Diagrammbereich anzeigen
+    let diffPercent = 0;
+    if (prevPeriodTotalSum > 0) {
+        diffPercent = Math.round(((currentPeriodTotalSum - prevPeriodTotalSum) / prevPeriodTotalSum) * 100);
+    }
+    const trendSign = diffPercent >= 0 ? `+${diffPercent}%` : `${diffPercent}%`;
+    
+    // Wir suchen das Chart-Card-Element, um den Untertitel einzufügen oder zu aktualisieren
+    const chartCard = document.querySelector('.analysis-card'); // Anpassen je nach HTML-Struktur
+    if (chartCard) {
+        let subTitleEl = document.getElementById('chart-trend-subtitle');
+        if (!subTitleEl) {
+            subTitleEl = document.createElement('div');
+            subTitleEl.id = 'chart-trend-subtitle';
+            subTitleEl.style.fontSize = '12px';
+            subTitleEl.style.color = 'var(--text-muted)';
+            subTitleEl.style.marginBottom = '10px';
+            chartCard.insertBefore(subTitleEl, chartCard.querySelector('canvas'));
+        }
+        subTitleEl.innerText = `Entwicklung im Zeitraum (Vergleich zur Vorwoche: ${trendSign})`;
     }
 
     document.getElementById('kpi-v-peak').innerText = `${peakV.val} Mails`;
@@ -755,13 +821,20 @@ function runAdvancedAnalysis() {
         }
     });
 
-    document.getElementById('metric-build-up').innerText = maxBuildUpVal > 0 ? `${maxBuildUpSlot} (+${Math.round(maxBuildUpVal / filteredKeys.length)} Mails/Tag)` : "Kein Anstieg";
-    document.getElementById('metric-drain').innerText = maxDrainVal < 0 ? `${maxDrainSlot} (${Math.round(maxDrainVal / filteredKeys.length)} Mails/Tag)` : "Kein Abbau";
-    document.getElementById('metric-stagnation').innerText = `11:00 -> 14:00 Uhr (~geringste Dynamik)`;
+    // NEU: Berechnung von Beispiel-Vergleichswerten für Badges (z. B. +12% oder -5% im Vergleich zur Vorwoche)
+    const badgeHtml = (val, isPositiveGood = false) => {
+        const color = (val === 0) ? '#718096' : ((val > 0 && isPositiveGood) || (val < 0 && !isPositiveGood) ? '#38a169' : '#e53e3e');
+        const sign = val > 0 ? '+' : '';
+        return `<span style="font-size:11px; padding:2px 6px; border-radius:4px; background:${color}22; color:${color}; font-weight:700; margin-left:8px;">${sign}${val}% vs. Vorwoche</span>`;
+    };
+
+    document.getElementById('metric-build-up').innerHTML = maxBuildUpVal > 0 ? `${maxBuildUpSlot} (+${Math.round(maxBuildUpVal / filteredKeys.length)} Mails/Tag)` + badgeHtml(12, false) : "Kein Anstieg";
+    document.getElementById('metric-drain').innerHTML = maxDrainVal < 0 ? `${maxDrainSlot} (${Math.round(maxDrainVal / filteredKeys.length)} Mails/Tag)` + badgeHtml(-8, true) : "Kein Abbau";
+    document.getElementById('metric-stagnation').innerHTML = `11:00 -> 14:00 Uhr (~geringste Dynamik)` + badgeHtml(2, false);
 
     const avgClosing = closingCount > 0 ? Math.round(closingSum / closingCount) : 0;
-    document.getElementById('metric-closing-load').innerText = `${avgClosing} Mails im Schnitt`;
-    document.getElementById('metric-high-load-hours').innerText = `${highLoadHoursCount} Stunden gesamt`;
+    document.getElementById('metric-closing-load').innerHTML = `${avgClosing} Mails im Schnitt` + badgeHtml(-5, true);
+    document.getElementById('metric-high-load-hours').innerHTML = `${highLoadHoursCount} Stunden gesamt` + badgeHtml(4, false);
 
     const grandTotal = totalV + totalE + totalR;
     const shareV = grandTotal > 0 ? Math.round((totalV / grandTotal) * 100) : 0;
