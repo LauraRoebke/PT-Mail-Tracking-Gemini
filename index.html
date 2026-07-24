@@ -68,7 +68,6 @@
                             <th>Vertrieb & Aftersales</th>
                             <th>Einkauf</th>
                             <th>Rechnungen</th>
-                            <th>Stunden-Gesamt</th>
                         </tr>
                     </thead>
                     <tbody id="hourly-rows"></tbody>
@@ -78,7 +77,6 @@
                             <td id="sum-vertrieb">0</td>
                             <td id="sum-einkauf">0</td>
                             <td id="sum-rechnungen">0</td>
-                            <td id="sum-total">0</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -121,7 +119,7 @@
                     <canvas id="deptChart"></canvas>
                 </div>
                 <div class="card" style="margin-bottom:0;">
-                    <h3 style="font-size:15px; margin-top:0; color:var(--text-main);">Tagesverlauf (Stündlich)</h3>
+                    <h3 style="font-size:15px; margin-top:0; color:var(--text-main);">Tagesverlauf nach Abteilung</h3>
                     <canvas id="hourlyTrendChart"></canvas>
                 </div>
             </div>
@@ -173,8 +171,8 @@
             kwSelect.add(new Option('KW ' + kw, kw));
             chartKwSelect.add(new Option('KW ' + kw, kw));
         }
-        kwSelect.value = 1;
-        chartKwSelect.value = 1;
+        kwSelect.value = 14; // Default z.B. KW 14
+        chartKwSelect.value = 14;
     }
 
     function renderTable() {
@@ -188,7 +186,6 @@
                 <td><input type="number" min="0" id="v_${index}" value="0" onchange="calculateSums()"></td>
                 <td><input type="number" min="0" id="e_${index}" value="0" onchange="calculateSums()"></td>
                 <td><input type="number" min="0" id="r_${index}" value="0" onchange="calculateSums()"></td>
-                <td id="row_tot_${index}" class="row-total">0</td>
             `;
             tbody.appendChild(tr);
         });
@@ -237,26 +234,17 @@
     }
 
     function calculateSums() {
-        let sumV = 0, sumE = 0, sumR = 0, grandTotal = 0;
+        let sumV = 0, sumE = 0, sumR = 0;
 
         hours.forEach((h, i) => {
-            const v = parseInt(document.getElementById(`v_${i}`).value) || 0;
-            const e = parseInt(document.getElementById(`e_${i}`).value) || 0;
-            const r = parseInt(document.getElementById(`r_${i}`).value) || 0;
-            const rowTot = v + e + r;
-
-            document.getElementById(`row_tot_${i}`).innerText = rowTot;
-
-            sumV += v;
-            sumE += e;
-            sumR += r;
-            grandTotal += rowTot;
+            sumV += parseInt(document.getElementById(`v_${i}`).value) || 0;
+            sumE += parseInt(document.getElementById(`e_${i}`).value) || 0;
+            sumR += parseInt(document.getElementById(`r_${i}`).value) || 0;
         });
 
         document.getElementById('sum-vertrieb').innerText = sumV;
         document.getElementById('sum-einkauf').innerText = sumE;
         document.getElementById('sum-rechnungen').innerText = sumR;
-        document.getElementById('sum-total').innerText = grandTotal;
     }
 
     function switchTab(tabId) {
@@ -279,16 +267,27 @@
         const days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 
         let totalV = 0, totalE = 0, totalR = 0;
-        let hourlySums = new Array(hours.length).fill(0);
+        let hourlyV = new Array(hours.length).fill(0);
+        let hourlyE = new Array(hours.length).fill(0);
+        let hourlyR = new Array(hours.length).fill(0);
+        let hourlyTotal = new Array(hours.length).fill(0);
 
         days.forEach(day => {
             const key = `${year}_KW${kw}_${day}`;
             const data = store[key] || [];
             data.forEach((row, i) => {
-                totalV += row.vertrieb || 0;
-                totalE += row.einkauf || 0;
-                totalR += row.rechnungen || 0;
-                hourlySums[i] += (row.vertrieb || 0) + (row.einkauf || 0) + (row.rechnungen || 0);
+                const v = row.vertrieb || 0;
+                const e = row.einkauf || 0;
+                const r = row.rechnungen || 0;
+
+                totalV += v;
+                totalE += e;
+                totalR += r;
+
+                hourlyV[i] += v;
+                hourlyE[i] += e;
+                hourlyR[i] += r;
+                hourlyTotal[i] += (v + e + r);
             });
         });
 
@@ -300,7 +299,7 @@
         if (totalR > totalV && totalR > totalE) topDept = "Rechnungen";
         document.getElementById('kpi-top-dept').innerText = totalKW > 0 ? topDept : "-";
 
-        const maxHourIdx = hourlySums.indexOf(Math.max(...hourlySums));
+        const maxHourIdx = hourlyTotal.indexOf(Math.max(...hourlyTotal));
         document.getElementById('kpi-top-hour').innerText = totalKW > 0 ? hours[maxHourIdx] + " Uhr" : "-";
 
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -316,7 +315,7 @@
                 datasets: [{
                     label: 'Anzahl Mails',
                     data: [totalV, totalE, totalR],
-                    backgroundColor: ['#1d1f3e', '#1aabbb', '#737680'],
+                    backgroundColor: ['#1d1f3e', '#1aabbb', '#e07a5f'],
                     borderRadius: 8
                 }]
             },
@@ -336,20 +335,50 @@
             type: 'line',
             data: {
                 labels: hours,
-                datasets: [{
-                    label: 'Gesamt-Mails pro Stunde',
-                    data: hourlySums,
-                    borderColor: '#1aabbb',
-                    backgroundColor: 'rgba(26, 171, 187, 0.1)',
-                    fill: true,
-                    tension: 0.35,
-                    borderWidth: 3,
-                    pointBackgroundColor: '#1d1f3e'
-                }]
+                datasets: [
+                    {
+                        label: 'Vertrieb & Aftersales',
+                        data: hourlyV,
+                        borderColor: '#1d1f3e',
+                        backgroundColor: '#1d1f3e',
+                        tension: 0.3,
+                        borderWidth: 2.5,
+                        pointRadius: 4
+                    },
+                    {
+                        label: 'Einkauf',
+                        data: hourlyE,
+                        borderColor: '#1aabbb',
+                        backgroundColor: '#1aabbb',
+                        tension: 0.3,
+                        borderWidth: 2.5,
+                        pointRadius: 4
+                    },
+                    {
+                        label: 'Rechnungen',
+                        data: hourlyR,
+                        borderColor: '#e07a5f',
+                        backgroundColor: '#e07a5f',
+                        tension: 0.3,
+                        borderWidth: 2.5,
+                        pointRadius: 4
+                    }
+                ]
             },
             options: { 
                 responsive: true,
-                plugins: { legend: { display: false } },
+                plugins: { 
+                    legend: { 
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            color: textColor,
+                            font: { family: 'Plus Jakarta Sans', size: 12, weight: '600' },
+                            usePointStyle: true,
+                            boxWidth: 8
+                        }
+                    } 
+                },
                 scales: {
                     x: { ticks: { color: textColor }, grid: { display: false } },
                     y: { ticks: { color: textColor }, grid: { color: gridColor } }
