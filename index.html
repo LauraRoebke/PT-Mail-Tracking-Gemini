@@ -42,6 +42,10 @@
         <div class="card">
             <div class="filter-bar">
                 <div class="control-group">
+                    <label>Datum</label>
+                    <input type="date" id="entry-date-picker" onchange="handleDatePickerChange()">
+                </div>
+                <div class="control-group">
                     <label>Jahr</label>
                     <select id="select-year" onchange="handleSelectorChange('year')"></select>
                 </div>
@@ -98,7 +102,6 @@
     <!-- TAB 2: ANALYSE & DIAGRAMME -->
     <div id="analyse" class="tab-content">
         <div class="card">
-            <!-- DYNAMISCHER FILTER-BEREICH -->
             <div class="filter-bar">
                 <div class="control-group">
                     <label>Zeitraum-Ansicht</label>
@@ -110,13 +113,11 @@
                     </select>
                 </div>
 
-                <!-- Datumswähler für Tages-, Wochen- und Monatsansicht -->
                 <div class="control-group" id="filter-date-group">
                     <label id="date-label">Datum auswählen</label>
                     <input type="date" id="analysis-date-picker" onchange="runAnalysis()">
                 </div>
 
-                <!-- Jahreswähler für Jahresansicht -->
                 <div class="control-group" id="filter-year-group" style="display:none;">
                     <label>Auswertungsjahr</label>
                     <select id="analysis-year-picker" onchange="runAnalysis()"></select>
@@ -133,7 +134,6 @@
                 </div>
             </div>
 
-            <!-- PEAK KPI CARDS -->
             <div class="kpi-grid" id="kpi-container">
                 <div class="kpi-card" id="card-kpi-v" style="border-left: 4px solid #1d1f3e;">
                     <p class="kpi-title">VERTRIEB & AFTERSALES (PEAK)</p>
@@ -152,7 +152,6 @@
                 </div>
             </div>
 
-            <!-- DIAGRAMME CONTAINER -->
             <div class="charts-grid" style="margin-bottom:24px;">
                 <div class="card" style="margin-bottom:0;">
                     <h3 style="font-size:14px; margin-bottom:10px; color:var(--text-main);" id="chart-main-title">Entwicklung im Zeitraum</h3>
@@ -162,7 +161,6 @@
                 </div>
             </div>
 
-            <!-- KOMMENTAR / NOTIZEN LOGS FÜR DEN GEFILTERTEN ZEITRAUM -->
             <h3 style="font-size:15px; margin-bottom:12px; color:var(--text-main);">🏷️ Tageskommentare & Besonderheiten im ausgewählten Zeitraum</h3>
             <div id="analysis-comments-list" class="comments-log-container">
                 <p style="color:var(--text-muted); font-size:13px;">Keine Tagesnotizen in dieser Auswahl erfasst.</p>
@@ -176,7 +174,7 @@
     let store = JSON.parse(localStorage.getItem('email_tracking_db')) || {};
 
     let isDirty = false;
-    let previousYear, previousKW, previousDay;
+    let previousYear, previousKW, previousDay, previousDate;
 
     function markUnsavedChanges() { isDirty = true; }
     function clearUnsavedChanges() { isDirty = false; }
@@ -217,10 +215,27 @@
         return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
     }
 
+    function getDateFromKW(year, kw, dayName) {
+        const dayMap = { "Montag": 1, "Dienstag": 2, "Mittwoch": 3, "Donnerstag": 4, "Freitag": 5, "Samstag": 6 };
+        const targetDay = dayMap[dayName] || 1;
+        const simple = new Date(year, 0, 1 + (kw - 1) * 7);
+        const dow = simple.getDay();
+        const ISOweekStart = simple;
+        if (dow <= 4)
+            ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
+        else
+            ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+        
+        const resultDate = new Date(ISOweekStart);
+        resultDate.setDate(ISOweekStart.getDate() + (targetDay - 1));
+        return resultDate;
+    }
+
     function initSelectors() {
         const yearSelect = document.getElementById('select-year');
         const kwSelect = document.getElementById('select-kw');
         const daySelect = document.getElementById('select-day');
+        const entryDatePicker = document.getElementById('entry-date-picker');
         const analysisYearPicker = document.getElementById('analysis-year-picker');
         const datePicker = document.getElementById('analysis-date-picker');
 
@@ -228,6 +243,7 @@
         const currentYear = now.getFullYear();
         const currentKW = getISOWeek(now);
         
+        entryDatePicker.value = now.toISOString().slice(0, 10);
         datePicker.value = now.toISOString().slice(0, 10);
 
         const daysOfWeek = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
@@ -253,6 +269,7 @@
         previousYear = yearSelect.value;
         previousKW = kwSelect.value;
         previousDay = daySelect.value;
+        previousDate = entryDatePicker.value;
     }
 
     function renderTable() {
@@ -263,9 +280,24 @@
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${h} Uhr</td>
-                <td><input type="number" min="0" id="v_${index}" value="0" oninput="markUnsavedChanges()" onkeydown="handleTableNavigation(event, 'v', ${index})" onchange="calculateSums()"></td>
-                <td><input type="number" min="0" id="e_${index}" value="0" oninput="markUnsavedChanges()" onkeydown="handleTableNavigation(event, 'e', ${index})" onchange="calculateSums()"></td>
-                <td><input type="number" min="0" id="r_${index}" value="0" oninput="markUnsavedChanges()" onkeydown="handleTableNavigation(event, 'r', ${index})" onchange="calculateSums()"></td>
+                <td>
+                    <div class="input-peak-wrapper" id="wrap_v_${index}">
+                        <input type="number" min="0" id="v_${index}" value="0" oninput="markUnsavedChanges(); calculateSums();" onkeydown="handleTableNavigation(event, 'v', ${index})">
+                        <span class="peak-badge">🔥 Peak</span>
+                    </div>
+                </td>
+                <td>
+                    <div class="input-peak-wrapper" id="wrap_e_${index}">
+                        <input type="number" min="0" id="e_${index}" value="0" oninput="markUnsavedChanges(); calculateSums();" onkeydown="handleTableNavigation(event, 'e', ${index})">
+                        <span class="peak-badge">🔥 Peak</span>
+                    </div>
+                </td>
+                <td>
+                    <div class="input-peak-wrapper" id="wrap_r_${index}">
+                        <input type="number" min="0" id="r_${index}" value="0" oninput="markUnsavedChanges(); calculateSums();" onkeydown="handleTableNavigation(event, 'r', ${index})">
+                        <span class="peak-badge">🔥 Peak</span>
+                    </div>
+                </td>
             `;
             tbody.appendChild(tr);
         });
@@ -309,9 +341,41 @@
         return `${y}_KW${kw}_${day}`;
     }
 
+    function handleDatePickerChange() {
+        if (isDirty) {
+            const confirmChange = confirm("⚠️ Du hast ungespeicherte Änderungen für diesen Tag!\n\nMöchtest du das Datum wechseln, ohne vorher zu speichern?");
+            if (!confirmChange) {
+                document.getElementById('entry-date-picker').value = previousDate;
+                return;
+            }
+        }
+
+        const dateVal = document.getElementById('entry-date-picker').value;
+        if (!dateVal) return;
+
+        const d = new Date(dateVal);
+        const y = d.getFullYear();
+        const kw = getISOWeek(d);
+        const dayNames = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+        let dayName = dayNames[d.getDay()];
+        if (dayName === "Sonntag") dayName = "Montag";
+
+        document.getElementById('select-year').value = y;
+        document.getElementById('select-kw').value = kw;
+        document.getElementById('select-day').value = dayName;
+
+        previousYear = y;
+        previousKW = kw;
+        previousDay = dayName;
+        previousDate = dateVal;
+
+        clearUnsavedChanges();
+        loadTableData();
+    }
+
     function handleSelectorChange(changedType) {
         if (isDirty) {
-            const confirmChange = confirm("⚠️ Du hast ungespeicherte Änderungen für diesen Tag!\n\nMöchtest du den Tag/die KW wirklich wechseln, ohne vorher auf 'Tag Speichern' zu klicken?");
+            const confirmChange = confirm("⚠️ Du hast ungespeicherte Änderungen für diesen Tag!\n\nMöchtest du den Tag/die KW wechseln, ohne vorher auf 'Tag Speichern' zu klicken?");
             if (!confirmChange) {
                 document.getElementById('select-year').value = previousYear;
                 document.getElementById('select-kw').value = previousKW;
@@ -320,9 +384,17 @@
             }
         }
         
-        previousYear = document.getElementById('select-year').value;
-        previousKW = document.getElementById('select-kw').value;
-        previousDay = document.getElementById('select-day').value;
+        const y = document.getElementById('select-year').value;
+        const kw = document.getElementById('select-kw').value;
+        const day = document.getElementById('select-day').value;
+
+        const calculatedDate = getDateFromKW(y, kw, day);
+        document.getElementById('entry-date-picker').value = calculatedDate.toISOString().slice(0, 10);
+
+        previousYear = y;
+        previousKW = kw;
+        previousDay = day;
+        previousDate = document.getElementById('entry-date-picker').value;
         
         clearUnsavedChanges();
         loadTableData();
@@ -401,14 +473,29 @@
     function calculateSums() {
         let maxV = 0, maxE = 0, maxR = 0;
 
-        hours.forEach((h, i) => {
+        hours.forEach((_, i) => {
             const v = parseInt(document.getElementById(`v_${i}`).value) || 0;
             const e = parseInt(document.getElementById(`e_${i}`).value) || 0;
             const r = parseInt(document.getElementById(`r_${i}`).value) || 0;
 
-            if(v > maxV) maxV = v;
-            if(e > maxE) maxE = e;
-            if(r > maxR) maxR = r;
+            if (v > maxV) maxV = v;
+            if (e > maxE) maxE = e;
+            if (r > maxR) maxR = r;
+        });
+
+        // Peaks visualisieren
+        hours.forEach((_, i) => {
+            const v = parseInt(document.getElementById(`v_${i}`).value) || 0;
+            const e = parseInt(document.getElementById(`e_${i}`).value) || 0;
+            const r = parseInt(document.getElementById(`r_${i}`).value) || 0;
+
+            const wrapV = document.getElementById(`wrap_v_${i}`);
+            const wrapE = document.getElementById(`wrap_e_${i}`);
+            const wrapR = document.getElementById(`wrap_r_${i}`);
+
+            if (maxV > 0 && v === maxV) wrapV.classList.add('is-peak'); else wrapV.classList.remove('is-peak');
+            if (maxE > 0 && e === maxE) wrapE.classList.add('is-peak'); else wrapE.classList.remove('is-peak');
+            if (maxR > 0 && r === maxR) wrapR.classList.add('is-peak'); else wrapR.classList.remove('is-peak');
         });
 
         document.getElementById('sum-vertrieb').innerText = `Peak heute: ${maxV}`;
@@ -449,7 +536,6 @@
 
     let mainChart;
 
-    // Custom Plugin für das Zeichnen der 🏷️ Symbole direkt über den Balken/Datenpunkten
     const tagSymbolPlugin = {
         id: 'tagSymbolPlugin',
         afterDatasetsDraw(chart) {
@@ -494,7 +580,7 @@
         let labels = [];
         let datasets = [];
         let comments = [];
-        let indexCommentsMap = []; // speichert pro Index (X-Achse) den Kommentar für das Chart-Plugin
+        let indexCommentsMap = [];
 
         let peakV = { val: 0, time: '-' }, peakE = { val: 0, time: '-' }, peakR = { val: 0, time: '-' };
 
@@ -529,7 +615,7 @@
 
             if (comment) {
                 comments.push({ context: `${dayName} (${selectedDate.toLocaleDateString()})`, comment });
-                indexCommentsMap[labels.length - 1] = comment; // am Ende anheften
+                indexCommentsMap[labels.length - 1] = comment;
             }
             updatePeaks(rows, dayName);
 
@@ -648,7 +734,6 @@
             datasets = createDatasets(selectedDept, dataV, dataE, dataR);
         }
 
-        // KPI UI setzen
         document.getElementById('kpi-v-peak').innerText = `${peakV.val} Mails`;
         document.getElementById('kpi-v-time').innerText = peakV.val > 0 ? `Spitze: ${peakV.time}` : "Keine Daten";
         document.getElementById('kpi-e-peak').innerText = `${peakE.val} Mails`;
@@ -656,7 +741,6 @@
         document.getElementById('kpi-r-peak').innerText = `${peakR.val} Mails`;
         document.getElementById('kpi-r-time').innerText = peakR.val > 0 ? `Spitze: ${peakR.time}` : "Keine Daten";
 
-        // Kommentarliste Rendern
         const commentsContainer = document.getElementById('analysis-comments-list');
         commentsContainer.innerHTML = '';
         if (comments.length === 0) {
@@ -670,7 +754,6 @@
             });
         }
 
-        // Chart zeichnen mit Tag-Map
         renderMainChart(labels, datasets, viewType === 'day' ? 'line' : 'bar', indexCommentsMap);
     }
 
@@ -702,7 +785,7 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 layout: {
-                    padding: { top: 25 } // Platz für das 🏷️ Symbol oben
+                    padding: { top: 25 }
                 },
                 plugins: {
                     legend: { display: true, position: 'top', labels: { color: textColor, font: { family: 'Plus Jakarta Sans', weight: '600' } } },
