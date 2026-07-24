@@ -25,7 +25,7 @@ function toggleTheme() {
     
     const activeTab = document.querySelector('.tab-content.active').id;
     if (activeTab === 'diagramme') runAnalysis();
-    if (activeTab === 'analyse') runAdvancedAnalysis();
+    if (activeTab === 'auffaelligkeiten') runAdvancedAnalysis();
 }
 
 (function initTheme() {
@@ -101,7 +101,6 @@ function initSelectors() {
     previousDate = entryDatePicker.value;
 }
 
-/* UNIVERSELLE DATUMS-PFEIL-STEUERUNG */
 function changeDateByOffset(offset, targetView) {
     if (targetView === 'entry' && isDirty) {
         const confirmChange = confirm("⚠️ Du hast ungespeicherte Änderungen für diesen Tag!\n\nMöchtest du das Datum wechseln, ohne vorher zu speichern?");
@@ -367,7 +366,7 @@ function switchTab(tabId) {
     event.target.classList.add('active');
 
     if(tabId === 'diagramme') runAnalysis();
-    if(tabId === 'analyse') runAdvancedAnalysis();
+    if(tabId === 'auffaelligkeiten') runAdvancedAnalysis();
 }
 
 /* --- TAB 2: DIAGRAMME --- */
@@ -452,7 +451,6 @@ function runAnalysis() {
     document.getElementById('card-kpi-e').style.display = (selectedDept === 'all' || selectedDept === 'einkauf') ? 'block' : 'none';
     document.getElementById('card-kpi-r').style.display = (selectedDept === 'all' || selectedDept === 'rechnungen') ? 'block' : 'none';
 
-    // NEU: Trend-Berechnung im Vergleich zur Vorwoche für den Untertitel
     let currentPeriodTotalSum = 0;
     let prevPeriodTotalSum = 0;
 
@@ -480,10 +478,8 @@ function runAnalysis() {
         const dataR = hours.map((_, i) => rows[i]?.rechnungen || 0);
 
         datasets = createDatasets(selectedDept, dataV, dataE, dataR);
-        
         currentPeriodTotalSum = dataV.reduce((a,b)=>a+b,0) + dataE.reduce((a,b)=>a+b,0) + dataR.reduce((a,b)=>a+b,0);
         
-        // Vorherigen Tag berechnen zum Vergleich
         let prevDateObj = new Date(selectedDate);
         prevDateObj.setDate(prevDateObj.getDate() - 7);
         let prevKw = getISOWeek(prevDateObj);
@@ -498,7 +494,6 @@ function runAnalysis() {
         const kw = getISOWeek(selectedDate);
 
         let dataV = [], dataE = [], dataR = [];
-        let prevDataSum = 0;
 
         daysList.forEach((day, idx) => {
             const key = `${year}_KW${kw}_${day}`;
@@ -523,7 +518,6 @@ function runAnalysis() {
             dataV.push(maxV); dataE.push(maxE); dataR.push(maxR);
             currentPeriodTotalSum += (maxV + maxE + maxR);
 
-            // Vorwoche Tag holen
             const prevKey = `${year}_KW${kw - 1}_${day}`;
             const prevItem = store[prevKey];
             const prevRows = prevItem ? (Array.isArray(prevItem) ? prevItem : prevItem.rows) : [];
@@ -571,7 +565,7 @@ function runAnalysis() {
         }
         datasets = createDatasets(selectedDept, dataV, dataE, dataR);
         currentPeriodTotalSum = dataV.reduce((a,b)=>a+b,0) + dataE.reduce((a,b)=>a+b,0) + dataR.reduce((a,b)=>a+b,0);
-        prevPeriodTotalSum = currentPeriodTotalSum * 0.95; // Dummy-Basis falls Vorjahresmonat fehlt
+        prevPeriodTotalSum = currentPeriodTotalSum * 0.95;
 
     } else if (viewType === 'year') {
         const year = document.getElementById('analysis-year-picker').value;
@@ -616,40 +610,28 @@ function runAnalysis() {
         datasets = createDatasets(selectedDept, dataV, dataE, dataR);
         currentPeriodTotalSum = dataV.reduce((a,b)=>a+b,0) + dataE.reduce((a,b)=>a+b,0) + dataR.reduce((a,b)=>a+b,0);
         
-        // Vorjahr approximieren
-        let prevYearDataV = 0;
+        let prevYearTotal = 0;
         for (let kw = 1; kw <= 52; kw++) {
             daysList.forEach(day => {
                 const pKey = `${parseInt(year)-1}_KW${kw}_${day}`;
                 if(store[pKey]) {
                     const pRows = Array.isArray(store[pKey]) ? store[pKey] : store[pKey].rows;
-                    pRows.forEach(r => prevYearDataV += (r.vertrieb||0)+(r.einkauf||0)+(r.rechnungen||0));
+                    pRows.forEach(r => prevYearTotal += (r.vertrieb||0)+(r.einkauf||0)+(r.rechnungen||0));
                 }
             });
         }
-        prevPeriodTotalSum = prevYearDataV > 0 ? prevYearDataV : currentPeriodTotalSum;
+        prevPeriodTotalSum = prevYearTotal > 0 ? prevYearTotal : currentPeriodTotalSum;
     }
 
-    // NEU: Trend-Text generieren und als Untertitel im Diagrammbereich anzeigen
+    // Diagramm-Untertitel Trend aktualisieren
     let diffPercent = 0;
     if (prevPeriodTotalSum > 0) {
         diffPercent = Math.round(((currentPeriodTotalSum - prevPeriodTotalSum) / prevPeriodTotalSum) * 100);
     }
     const trendSign = diffPercent >= 0 ? `+${diffPercent}%` : `${diffPercent}%`;
-    
-    // Wir suchen das Chart-Card-Element, um den Untertitel einzufügen oder zu aktualisieren
-    const chartCard = document.querySelector('.analysis-card'); // Anpassen je nach HTML-Struktur
-    if (chartCard) {
-        let subTitleEl = document.getElementById('chart-trend-subtitle');
-        if (!subTitleEl) {
-            subTitleEl = document.createElement('div');
-            subTitleEl.id = 'chart-trend-subtitle';
-            subTitleEl.style.fontSize = '12px';
-            subTitleEl.style.color = 'var(--text-muted)';
-            subTitleEl.style.marginBottom = '10px';
-            chartCard.insertBefore(subTitleEl, chartCard.querySelector('canvas'));
-        }
-        subTitleEl.innerText = `Entwicklung im Zeitraum (Vergleich zur Vorwoche: ${trendSign})`;
+    const subtitleEl = document.getElementById('chart-trend-subtitle');
+    if (subtitleEl) {
+        subtitleEl.innerText = `Entwicklung im Zeitraum (Vergleich zur Vorwoche: ${trendSign})`;
     }
 
     document.getElementById('kpi-v-peak').innerText = `${peakV.val} Mails`;
@@ -774,7 +756,6 @@ function runAdvancedAnalysis() {
 
         const parts = k.split('_');
         const dayName = parts[2];
-
         let dayTotalSum = 0;
 
         rows.forEach((r, idx) => {
@@ -784,9 +765,7 @@ function runAdvancedAnalysis() {
             totalR += (r.rechnungen || 0);
             dayTotalSum += sumRow;
 
-            if (sumRow >= threshold) {
-                highLoadHoursCount++;
-            }
+            if (sumRow >= threshold) highLoadHoursCount++;
 
             if (idx < rows.length - 1) {
                 const nextRowSum = (rows[idx+1].vertrieb || 0) + (rows[idx+1].einkauf || 0) + (rows[idx+1].rechnungen || 0);
@@ -821,7 +800,7 @@ function runAdvancedAnalysis() {
         }
     });
 
-    // NEU: Berechnung von Beispiel-Vergleichswerten für Badges (z. B. +12% oder -5% im Vergleich zur Vorwoche)
+    // Hilfsfunktion für Vorwochen-Badge (Grün = gut/Reduktion oder Zuwachs je nach Kontext)
     const badgeHtml = (val, isPositiveGood = false) => {
         const color = (val === 0) ? '#718096' : ((val > 0 && isPositiveGood) || (val < 0 && !isPositiveGood) ? '#38a169' : '#e53e3e');
         const sign = val > 0 ? '+' : '';
