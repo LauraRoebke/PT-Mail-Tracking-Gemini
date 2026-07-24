@@ -8,6 +8,9 @@
     --accent-dark: #1d1f3e;
     --accent-hover: #1793a3;
     --input-bg: #fcfcfc;
+    --peak-bg: #fffbf0;
+    --peak-border: #f5a623;
+    --peak-text: #b7791f;
 }
 
 :root[data-theme="dark"] {
@@ -20,6 +23,9 @@
     --accent-dark: #2a2e58;
     --accent-hover: #21b2c4;
     --input-bg: #222630;
+    --peak-bg: #2b2415;
+    --peak-border: #f5a623;
+    --peak-text: #fbd38d;
 }
 
 * {
@@ -232,23 +238,56 @@ select, input[type="date"] {
     border-bottom: none;
 }
 
-.tracking-table input[type="number"] {
+/* PEAK BADGE STYLING FÜR BILD 1 */
+.input-peak-wrapper {
+    position: relative;
+    display: inline-block;
     width: 100%;
-    max-width: 160px;
-    padding: 8px 12px;
+    max-width: 220px;
+}
+
+.input-peak-wrapper input[type="number"] {
+    width: 100%;
+    padding: 8px 65px 8px 12px;
     border: 1px solid var(--border-color);
-    border-radius: 6px;
+    border-radius: 8px;
     background: var(--input-bg);
     color: var(--text-main);
     font-size: 14px;
     font-weight: 700;
     outline: none;
-    transition: border-color 0.2s;
+    transition: all 0.2s ease;
 }
 
-.tracking-table input[type="number"]:focus {
+.input-peak-wrapper input[type="number"]:focus {
     border-color: var(--accent-teal);
     box-shadow: 0 0 0 3px rgba(26, 171, 187, 0.15);
+}
+
+.peak-badge {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--peak-bg);
+    border: 1px solid var(--peak-border);
+    color: var(--peak-text);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 6px;
+    display: none;
+    pointer-events: none;
+}
+
+.input-peak-wrapper.is-peak input[type="number"] {
+    border-color: var(--peak-border);
+    background-color: var(--peak-bg);
+    box-shadow: 0 0 0 1px var(--peak-border);
+}
+
+.input-peak-wrapper.is-peak .peak-badge {
+    display: inline-block;
 }
 
 .table-totals {
