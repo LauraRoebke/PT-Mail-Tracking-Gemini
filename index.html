@@ -34,7 +34,8 @@
 
     <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('datenerfassung')">Datenerfassung</button>
-        <button class="tab-btn" onclick="switchTab('diagramme')">Diagramme & Analyse</button>
+        <button class="tab-btn" onclick="switchTab('diagramme')">Wochen-Analyse</button>
+        <button class="tab-btn" onclick="switchTab('jahrestrend')">📊 Monats- & Jahrestrend</button>
     </div>
 
     <!-- TAB 1: DATENERFASSUNG -->
@@ -87,10 +88,16 @@
                     </tfoot>
                 </table>
             </div>
+
+            <!-- KOMMENTARFELD PRO TAG -->
+            <div class="comment-section">
+                <label for="day-comment">🏷️ Tageskommentar / Besonderheiten (z.B. Systemausfall, Aktionstag, Krankheitswelle):</label>
+                <input type="text" id="day-comment" placeholder="Hinweise zu diesem Tag eintragen..." onchange="autoSaveComment()">
+            </div>
         </div>
     </div>
 
-    <!-- TAB 2: DIAGRAMME & AUSWERTUNG -->
+    <!-- TAB 2: WOCHEN-ANALYSE -->
     <div id="diagramme" class="tab-content">
         <div class="card">
             <div class="filter-bar">
@@ -139,6 +146,28 @@
             </div>
         </div>
     </div>
+
+    <!-- TAB 3: MONATS- & JAHRESTREND -->
+    <div id="jahrestrend" class="tab-content">
+        <div class="card">
+            <div class="filter-bar">
+                <div class="control-group">
+                    <label>Auswertungsjahr</label>
+                    <select id="trend-year" onchange="updateTrendChart()"></select>
+                </div>
+            </div>
+
+            <h3 style="font-size:15px; margin-bottom:12px; color:var(--text-main);">Maximaler Ordnerbestand im Jahresverlauf (KW 1 – 52)</h3>
+            <div style="height:320px; position:relative; margin-bottom:24px;">
+                <canvas id="yearlyTrendChart"></canvas>
+            </div>
+
+            <h3 style="font-size:15px; margin-bottom:12px; color:var(--text-main);">🏷️ Erfasste Tageskommentare & Notizen in diesem Jahr</h3>
+            <div id="comments-log-list" class="comments-log-container">
+                <p style="color:var(--text-muted); font-size:13px;">Keine Tagesnotizen vorhanden.</p>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -154,9 +183,9 @@
         
         document.getElementById('theme-btn').innerText = newTheme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode';
         
-        if (document.getElementById('diagramme').classList.contains('active')) {
-            updateCharts();
-        }
+        const activeTab = document.querySelector('.tab-content.active').id;
+        if (activeTab === 'diagramme') updateCharts();
+        if (activeTab === 'jahrestrend') updateTrendChart();
     }
 
     (function initTheme() {
@@ -167,7 +196,6 @@
         }, 100);
     })();
 
-    // Hilfsfunktion: Berechnet die ISO-Kalenderwoche
     function getISOWeek(d) {
         const date = new Date(d.getTime());
         date.setHours(0, 0, 0, 0);
@@ -179,6 +207,7 @@
     function initSelectors() {
         const yearSelect = document.getElementById('select-year');
         const chartYearSelect = document.getElementById('chart-year');
+        const trendYearSelect = document.getElementById('trend-year');
         const kwSelect = document.getElementById('select-kw');
         const chartKwSelect = document.getElementById('chart-kw');
         const daySelect = document.getElementById('select-day');
@@ -187,17 +216,18 @@
         const currentYear = now.getFullYear();
         const currentKW = getISOWeek(now);
         
-        // Wochentag bestimmen (0 = So, 1 = Mo, ..., 6 = Sa)
         const daysOfWeek = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
         let currentDay = daysOfWeek[now.getDay()];
-        if (currentDay === "Sonntag") currentDay = "Montag"; // Standard für Sonntag auf Montag setzen
+        if (currentDay === "Sonntag") currentDay = "Montag";
 
         for (let y = currentYear - 2; y <= currentYear + 5; y++) {
             yearSelect.add(new Option(y, y));
             chartYearSelect.add(new Option(y, y));
+            trendYearSelect.add(new Option(y, y));
         }
         yearSelect.value = currentYear;
         chartYearSelect.value = currentYear;
+        trendYearSelect.value = currentYear;
 
         for (let kw = 1; kw <= 52; kw++) {
             kwSelect.add(new Option('KW ' + kw, kw));
@@ -227,7 +257,6 @@
         });
     }
 
-    // Tastaturnavigation per Enter und Pfeiltasten
     function handleTableNavigation(event, col, index) {
         const cols = ['v', 'e', 'r'];
         const colIdx = cols.indexOf(col);
@@ -268,6 +297,8 @@
 
     function saveCurrentDayData() {
         const key = getKey();
+        const comment = document.getElementById('day-comment').value.trim();
+
         const dayData = hours.map((h, i) => ({
             hour: h,
             vertrieb: parseInt(document.getElementById(`v_${i}`).value) || 0,
@@ -275,7 +306,11 @@
             rechnungen: parseInt(document.getElementById(`r_${i}`).value) || 0,
         }));
 
-        store[key] = dayData;
+        store[key] = {
+            rows: dayData,
+            comment: comment
+        };
+
         localStorage.setItem('email_tracking_db', JSON.stringify(store));
         
         const btn = document.querySelector('.btn-primary');
@@ -288,13 +323,18 @@
         }, 1800);
     }
 
+    function autoSaveComment() {
+        saveCurrentDayData();
+    }
+
     function resetCurrentDayData() {
-        if (confirm("Möchtest du die Werte für diesen Tag wirklich auf 0 zurücksetzen?")) {
+        if (confirm("Möchtest du die Werte und Notizen für diesen Tag wirklich auf 0 zurücksetzen?")) {
             hours.forEach((_, i) => {
                 document.getElementById(`v_${i}`).value = 0;
                 document.getElementById(`e_${i}`).value = 0;
                 document.getElementById(`r_${i}`).value = 0;
             });
+            document.getElementById('day-comment').value = '';
             saveCurrentDayData();
             calculateSums();
         }
@@ -302,14 +342,28 @@
 
     function loadTableData() {
         const key = getKey();
-        const data = store[key] || [];
+        const storedObject = store[key];
+
+        let rows = [];
+        let comment = "";
+
+        if (storedObject) {
+            if (Array.isArray(storedObject)) {
+                rows = storedObject; // Abwärtskompatibilität für altes Datenformat
+            } else {
+                rows = storedObject.rows || [];
+                comment = storedObject.comment || "";
+            }
+        }
 
         hours.forEach((h, i) => {
-            const rowData = data[i] || { vertrieb: 0, einkauf: 0, rechnungen: 0 };
+            const rowData = rows[i] || { vertrieb: 0, einkauf: 0, rechnungen: 0 };
             document.getElementById(`v_${i}`).value = rowData.vertrieb;
             document.getElementById(`e_${i}`).value = rowData.einkauf;
             document.getElementById(`r_${i}`).value = rowData.rechnungen;
         });
+
+        document.getElementById('day-comment').value = comment;
         calculateSums();
     }
 
@@ -338,12 +392,11 @@
         document.getElementById(tabId).classList.add('active');
         event.target.classList.add('active');
 
-        if(tabId === 'diagramme') {
-            updateCharts();
-        }
+        if(tabId === 'diagramme') updateCharts();
+        if(tabId === 'jahrestrend') updateTrendChart();
     }
 
-    let deptChart, hourlyTrendChart;
+    let deptChart, hourlyTrendChart, yearlyTrendChart;
 
     function updateCharts() {
         const year = document.getElementById('chart-year').value;
@@ -361,11 +414,12 @@
 
         days.forEach(day => {
             const key = `${year}_KW${kw}_${day}`;
-            const data = store[key];
+            const item = store[key];
+            const rows = item ? (Array.isArray(item) ? item : item.rows) : null;
             
-            if (data && data.length > 0) {
+            if (rows && rows.length > 0) {
                 activeDaysCount++;
-                data.forEach((row, i) => {
+                rows.forEach((row, i) => {
                     const v = row.vertrieb || 0;
                     const e = row.einkauf || 0;
                     const r = row.rechnungen || 0;
@@ -430,33 +484,9 @@
             data: {
                 labels: hours,
                 datasets: [
-                    {
-                        label: 'Vertrieb & Aftersales',
-                        data: avgV,
-                        borderColor: '#1d1f3e',
-                        backgroundColor: '#1d1f3e',
-                        tension: 0.3,
-                        borderWidth: 2.5,
-                        pointRadius: 4
-                    },
-                    {
-                        label: 'Einkauf',
-                        data: avgE,
-                        borderColor: '#1aabbb',
-                        backgroundColor: '#1aabbb',
-                        tension: 0.3,
-                        borderWidth: 2.5,
-                        pointRadius: 4
-                    },
-                    {
-                        label: 'Rechnungen',
-                        data: avgR,
-                        borderColor: '#e07a5f',
-                        backgroundColor: '#e07a5f',
-                        tension: 0.3,
-                        borderWidth: 2.5,
-                        pointRadius: 4
-                    }
+                    { label: 'Vertrieb & Aftersales', data: avgV, borderColor: '#1d1f3e', backgroundColor: '#1d1f3e', tension: 0.3, borderWidth: 2.5, pointRadius: 4 },
+                    { label: 'Einkauf', data: avgE, borderColor: '#1aabbb', backgroundColor: '#1aabbb', tension: 0.3, borderWidth: 2.5, pointRadius: 4 },
+                    { label: 'Rechnungen', data: avgR, borderColor: '#e07a5f', backgroundColor: '#e07a5f', tension: 0.3, borderWidth: 2.5, pointRadius: 4 }
                 ]
             },
             options: { 
@@ -464,19 +494,103 @@
                 maintainAspectRatio: false,
                 plugins: { 
                     legend: { 
-                        display: true,
-                        position: 'top',
-                        labels: {
-                            color: textColor,
-                            font: { family: 'Plus Jakarta Sans', size: 12, weight: '600' },
-                            usePointStyle: true,
-                            boxWidth: 8
-                        }
+                        display: true, position: 'top',
+                        labels: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 12, weight: '600' }, usePointStyle: true, boxWidth: 8 }
                     } 
                 },
                 scales: {
                     x: { ticks: { color: textColor }, grid: { display: false } },
                     y: { ticks: { color: textColor }, grid: { color: gridColor } }
+                }
+            }
+        });
+    }
+
+    /* NEU: JAHRESTREND CHART & NOTIZEN-LOG */
+    function updateTrendChart() {
+        const year = document.getElementById('trend-year').value;
+        const kwLabels = [];
+        const peakV_KW = [];
+        const peakE_KW = [];
+        const peakR_KW = [];
+        const commentsLog = [];
+
+        const days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+
+        for (let kw = 1; kw <= 52; kw++) {
+            kwLabels.push(`KW ${kw}`);
+            let maxV = 0, maxE = 0, maxR = 0;
+
+            days.forEach(day => {
+                const key = `${year}_KW${kw}_${day}`;
+                const item = store[key];
+                
+                if (item) {
+                    const rows = Array.isArray(item) ? item : item.rows;
+                    const comment = !Array.isArray(item) ? item.comment : "";
+
+                    if (rows) {
+                        rows.forEach(r => {
+                            if ((r.vertrieb || 0) > maxV) maxV = r.vertrieb;
+                            if ((r.einkauf || 0) > maxE) maxE = r.einkauf;
+                            if ((r.rechnungen || 0) > maxR) maxR = r.rechnungen;
+                        });
+                    }
+
+                    if (comment && comment.trim() !== "") {
+                        commentsLog.push({ kw, day, comment });
+                    }
+                }
+            });
+
+            peakV_KW.push(maxV);
+            peakE_KW.push(maxE);
+            peakR_KW.push(maxR);
+        }
+
+        // Kommentar-Log Rendern
+        const commentBox = document.getElementById('comments-log-list');
+        commentBox.innerHTML = '';
+        if (commentsLog.length === 0) {
+            commentBox.innerHTML = `<p style="color:var(--text-muted); font-size:13px;">Keine Tagesnotizen für das Jahr ${year} erfasst.</p>`;
+        } else {
+            commentsLog.forEach(log => {
+                const div = document.createElement('div');
+                div.className = 'comment-item';
+                div.innerHTML = `<strong>KW ${log.kw} (${log.day}):</strong> ${log.comment}`;
+                commentBox.appendChild(div);
+            });
+        }
+
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const textColor = isDark ? '#f0f1f5' : '#2d2f36';
+        const gridColor = isDark ? '#2c303c' : '#e3dfd7';
+
+        if (yearlyTrendChart) yearlyTrendChart.destroy();
+        const ctx3 = document.getElementById('yearlyTrendChart').getContext('2d');
+        yearlyTrendChart = new Chart(ctx3, {
+            type: 'bar',
+            data: {
+                labels: kwLabels,
+                datasets: [
+                    { label: 'Vertrieb & Aftersales', data: peakV_KW, backgroundColor: '#1d1f3e' },
+                    { label: 'Einkauf', data: peakE_KW, backgroundColor: '#1aabbb' },
+                    { label: 'Rechnungen', data: peakR_KW, backgroundColor: '#e07a5f' }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 12, weight: '600' } }
+                    }
+                },
+                scales: {
+                    x: { ticks: { color: textColor, maxRotation: 0, autoSkip: true, maxTicksLimit: 26 }, grid: { display: false } },
+                    y: { ticks: { color: textColor }, grid: { color: gridColor }, title: { display: true, text: 'Max. Ordnerbestand (Peak)', color: textColor } }
                 }
             }
         });
