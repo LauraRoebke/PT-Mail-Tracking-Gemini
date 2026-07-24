@@ -33,7 +33,6 @@ body {
     background-color: var(--bg-main);
     color: var(--text-main);
     transition: background-color 0.3s, color 0.3s;
-    /* Verhindert ungewolltes vertikales Scrollen auf Desktops */
     min-height: 100vh;
 }
 
@@ -43,7 +42,6 @@ body {
     padding: 12px 20px;
 }
 
-/* Header kompakter */
 header {
     display: flex;
     justify-content: space-between;
@@ -85,7 +83,6 @@ header {
     border-color: var(--accent-teal);
 }
 
-/* Tabs kompakter */
 .tabs {
     display: flex;
     gap: 6px;
@@ -118,7 +115,6 @@ header {
     display: block;
 }
 
-/* Karten & Filterleiste */
 .card {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
@@ -177,7 +173,6 @@ select {
     background: var(--accent-hover);
 }
 
-/* Kompakte Tabelle für 0-Scroll Desktop Ansicht */
 .table-responsive {
     overflow-x: auto;
 }
@@ -198,7 +193,7 @@ select {
 }
 
 .tracking-table td {
-    padding: 4px 8px; /* Sehr kompaktes Höhenelement */
+    padding: 4px 8px;
     border-bottom: 1px solid var(--border-color);
     font-size: 13px;
     font-weight: 500;
@@ -236,7 +231,6 @@ select {
     font-size: 13px;
 }
 
-/* Dashboard / KPIs */
 .kpi-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
