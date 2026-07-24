@@ -29,7 +29,7 @@
         </div>
     </header>
 
-    <!-- TAB NAVIGATION (3 TABS) -->
+    <!-- TAB NAVIGATION -->
     <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('datenerfassung')">Datenerfassung</button>
         <button class="tab-btn" onclick="switchTab('diagramme')">📊 Diagramme</button>
@@ -42,7 +42,11 @@
             <div class="filter-bar">
                 <div class="control-group">
                     <label>Datum</label>
-                    <input type="date" id="entry-date-picker" onchange="handleDatePickerChange()">
+                    <div class="date-nav-group">
+                        <button class="nav-arrow-btn" onclick="changeDateByOffset(-1, 'entry')" title="Vorheriger Tag">◀</button>
+                        <input type="date" id="entry-date-picker" onchange="handleDatePickerChange()">
+                        <button class="nav-arrow-btn" onclick="changeDateByOffset(1, 'entry')" title="Nächster Tag">▶</button>
+                    </div>
                 </div>
                 <div class="control-group">
                     <label>Jahr</label>
@@ -63,9 +67,9 @@
                         <option value="Samstag">Samstag (Manuell)</option>
                     </select>
                 </div>
-                <div class="button-group">
-                    <button class="btn-primary" onclick="saveCurrentDayData()">Tag Speichern</button>
+                <div class="button-group right-aligned">
                     <button class="btn-secondary" onclick="resetCurrentDayData()">🧹 Zurücksetzen</button>
+                    <button class="btn-primary" onclick="saveCurrentDayData()">Tag Speichern</button>
                 </div>
             </div>
 
@@ -114,7 +118,11 @@
 
                 <div class="control-group" id="filter-date-group">
                     <label id="date-label">Datum auswählen</label>
-                    <input type="date" id="analysis-date-picker" onchange="runAnalysis()">
+                    <div class="date-nav-group">
+                        <button class="nav-arrow-btn" onclick="changeDateByOffset(-1, 'analysis')" title="Vorheriger Tag">◀</button>
+                        <input type="date" id="analysis-date-picker" onchange="runAnalysis()">
+                        <button class="nav-arrow-btn" onclick="changeDateByOffset(1, 'analysis')" title="Nächster Tag">▶</button>
+                    </div>
                 </div>
 
                 <div class="control-group" id="filter-year-group" style="display:none;">
@@ -167,7 +175,7 @@
         </div>
     </div>
 
-    <!-- TAB 3: AUFFÄLLIGKEITEN & AUSLASTUNG (NEU) -->
+    <!-- TAB 3: AUFFÄLLIGKEITEN & AUSLASTUNG -->
     <div id="analyse" class="tab-content">
         <div class="card">
             <div class="filter-bar">
@@ -185,10 +193,7 @@
                 </div>
             </div>
 
-            <!-- ANALYSE-KARTEN GRID -->
             <div class="analysis-grid">
-                
-                <!-- Card 1: Stau & Abbau -->
                 <div class="analysis-card">
                     <h3>🌊 Stau- & Abbau-Dynamik</h3>
                     <p class="card-desc">Identifiziert die steilsten Anstiege und stärksten Abbau-Fenster über den ausgewählten Zeitraum.</p>
@@ -206,7 +211,6 @@
                     </div>
                 </div>
 
-                <!-- Card 2: Feierabend-Überhang -->
                 <div class="analysis-card">
                     <h3>⏳ Feierabend-Überhang & Belastung</h3>
                     <p class="card-desc">Messes den Rucksack an unbearbeiteten Mails zum Tagesschluss (17:00 Uhr).</p>
@@ -220,24 +224,17 @@
                     </div>
                 </div>
 
-                <!-- Card 3: Postfach Dominanz -->
                 <div class="analysis-card">
                     <h3>🏆 Postfach-Rückstau Anteil</h3>
                     <p class="card-desc">Welche Abteilung bindet den Hauptanteil des ungelösten Mail-Rückstaus?</p>
-                    <div id="dept-share-list" class="dept-share-container">
-                        <!-- Dynamisch generiert -->
-                    </div>
+                    <div id="dept-share-list" class="dept-share-container"></div>
                 </div>
 
-                <!-- Card 4: Wochentags-Muster -->
                 <div class="analysis-card">
                     <h3>🗓️ Der "Stautag" (Wochentags-Muster)</h3>
                     <p class="card-desc">Durchschnittlicher Rückstau über den gesamten Tag hinweg nach Wochentag.</p>
-                    <div id="weekday-pattern-list" class="pattern-list">
-                        <!-- Dynamisch generiert -->
-                    </div>
+                    <div id="weekday-pattern-list" class="pattern-list"></div>
                 </div>
-
             </div>
         </div>
     </div>
