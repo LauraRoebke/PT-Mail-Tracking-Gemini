@@ -261,6 +261,53 @@ select {
     font-size: 15px;
 }
 
+/* STYLES FÜR KOMMENTARE & JAHRESTREND LOG */
+.comment-section {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.comment-section label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.comment-section input[type="text"] {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-main);
+    font-size: 14px;
+    outline: none;
+}
+
+.comment-section input[type="text"]:focus {
+    border-color: var(--accent-teal);
+}
+
+.comments-log-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 220px;
+    overflow-y: auto;
+    padding-right: 6px;
+}
+
+.comment-item {
+    padding: 10px 14px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text-main);
+}
+
 .kpi-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
