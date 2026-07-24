@@ -11,23 +11,25 @@
     --peak-bg: #fffbf0;
     --peak-border: #f5a623;
     --peak-text: #b7791f;
-    --accent-vertrieb: #1d1f3e; /* Kräftiges Dunkelblau/Lila für Light Mode */
+    --trend-up: #2e7d32;
+    --trend-down: #c62828;
 }
 
 :root[data-theme="dark"] {
-    --bg-main: #181a20;         /* Neutrales, modernes Dunkelgrau statt Blau */
-    --bg-card: #21242d;         /* Neutrales, abgestuftes Karten-Grau */
+    --bg-main: #181a20;         /* Neutrales Dunkelgrau statt Blau */
+    --bg-card: #21242d;         /* Abgestuftes Karten-Grau */
     --text-main: #f0f1f5;
     --text-muted: #9a9fae;
     --border-color: #313643;    /* Dezente graue Rahmen */
     --accent-teal: #1aabbb;
-    --accent-dark: #9d72ff;     /* Helles, kontrastreiches Lila für Vertrieb & Aftersales im Dark Mode */
+    --accent-dark: #9d72ff;     /* Helles, kontrastreiches Lila für Vertrieb & Aftersales */
     --accent-hover: #21b2c4;
     --input-bg: #282c37;
     --peak-bg: #2b2415;
     --peak-border: #f5a623;
     --peak-text: #fbd38d;
-    --accent-vertrieb: #9d72ff; /* Perfekt sichtbares Lila auf grauem Dark-Mode-Grund */
+    --trend-up: #81c784;        /* Helles Grün für positive Trends im Dark Mode */
+    --trend-down: #e57373;      /* Helles Rot für negative Trends im Dark Mode */
 }
 
 * {
@@ -157,7 +159,6 @@ header {
     letter-spacing: 0.6px;
 }
 
-/* DATEN-NAVIGATION MIT PFEILEN */
 .date-nav-group {
     display: flex;
     align-items: center;
@@ -398,11 +399,38 @@ select, input[type="date"], input[type="number"] {
     letter-spacing: 0.5px;
 }
 
+.kpi-value-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 4px;
+}
+
 .kpi-value {
     font-size: 24px;
     font-weight: 700;
     color: var(--text-main);
-    margin-top: 4px;
+}
+
+/* NEU: Trend-Indikatoren Badges für Vorwochen-Vergleich */
+.trend-indicator {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.trend-indicator.up {
+    color: var(--trend-up);
+    background: rgba(46, 125, 50, 0.1);
+}
+
+.trend-indicator.down {
+    color: var(--trend-down);
+    background: rgba(198, 40, 40, 0.1);
 }
 
 .analysis-grid {
