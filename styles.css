@@ -155,6 +155,31 @@ header {
     letter-spacing: 0.6px;
 }
 
+/* DATEN-NAVIGATION MIT PFEILEN */
+.date-nav-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.nav-arrow-btn {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.nav-arrow-btn:hover {
+    border-color: var(--accent-teal);
+    color: var(--accent-teal);
+    background: var(--bg-card);
+}
+
 select, input[type="date"], input[type="number"] {
     background: var(--input-bg);
     border: 1px solid var(--border-color);
@@ -171,6 +196,10 @@ select, input[type="date"], input[type="number"] {
 .button-group {
     display: flex;
     gap: 10px;
+}
+
+.button-group.right-aligned {
+    margin-left: auto;
 }
 
 .btn-primary {
@@ -238,7 +267,6 @@ select, input[type="date"], input[type="number"] {
     border-bottom: none;
 }
 
-/* PEAK BADGE STYLING */
 .input-peak-wrapper {
     position: relative;
     display: inline-block;
@@ -375,7 +403,6 @@ select, input[type="date"], input[type="number"] {
     margin-top: 4px;
 }
 
-/* STYLING FÜR DEN NEUEN TAB: AUFFÄLLIGKEITEN & AUSLASTUNG */
 .analysis-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
