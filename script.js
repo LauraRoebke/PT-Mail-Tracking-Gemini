@@ -101,6 +101,28 @@ function initSelectors() {
     previousDate = entryDatePicker.value;
 }
 
+/* UNIVERSELLE DATUMS-PFEIL-STEUERUNG */
+function changeDateByOffset(offset, targetView) {
+    if (targetView === 'entry' && isDirty) {
+        const confirmChange = confirm("⚠️ Du hast ungespeicherte Änderungen für diesen Tag!\n\nMöchtest du das Datum wechseln, ohne vorher zu speichern?");
+        if (!confirmChange) return;
+    }
+
+    const pickerId = targetView === 'entry' ? 'entry-date-picker' : 'analysis-date-picker';
+    const dateInput = document.getElementById(pickerId);
+    if (!dateInput.value) return;
+
+    let d = new Date(dateInput.value);
+    d.setDate(d.getDate() + offset);
+    dateInput.value = d.toISOString().slice(0, 10);
+
+    if (targetView === 'entry') {
+        handleDatePickerChange();
+    } else {
+        runAnalysis();
+    }
+}
+
 function renderTable() {
     const tbody = document.getElementById('hourly-rows');
     tbody.innerHTML = '';
@@ -259,7 +281,8 @@ function saveCurrentDayData() {
 }
 
 function resetCurrentDayData() {
-    if (confirm("Möchtest du die Werte und Notizen für diesen Tag wirklich auf 0 zurücksetzen?")) {
+    const confirmReset = confirm("Möchtest du wirklich alle Werte und Notizen für diesen Tag auf 0 zurücksetzen?");
+    if (confirmReset) {
         hours.forEach((_, i) => {
             document.getElementById(`v_${i}`).value = 0;
             document.getElementById(`e_${i}`).value = 0;
@@ -635,7 +658,7 @@ function renderMainChart(labels, datasets, chartType, indexCommentsMap) {
     });
 }
 
-/* --- TAB 3: AUFFÄLLIGKEITEN & AUSLASTUNG (LOGIK) --- */
+/* --- TAB 3: AUFFÄLLIGKEITEN & AUSLASTUNG --- */
 function runAdvancedAnalysis() {
     const range = document.getElementById('advanced-range-picker').value;
     const threshold = parseInt(document.getElementById('threshold-input').value) || 30;
@@ -664,7 +687,6 @@ function runAdvancedAnalysis() {
         return;
     }
 
-    // 1. Stau & Abbau-Berechnungen
     let hourlyDiffs = {};
     for (let i = 0; i < hours.length - 1; i++) {
         const timeSlot = `${hours[i]} -> ${hours[i+1]}`;
@@ -719,7 +741,6 @@ function runAdvancedAnalysis() {
         }
     });
 
-    // Besten/Schlechtesten Slot finden
     let maxBuildUpSlot = "-", maxBuildUpVal = -Infinity;
     let maxDrainSlot = "-", maxDrainVal = Infinity;
 
@@ -738,12 +759,10 @@ function runAdvancedAnalysis() {
     document.getElementById('metric-drain').innerText = maxDrainVal < 0 ? `${maxDrainSlot} (${Math.round(maxDrainVal / filteredKeys.length)} Mails/Tag)` : "Kein Abbau";
     document.getElementById('metric-stagnation').innerText = `11:00 -> 14:00 Uhr (~geringste Dynamik)`;
 
-    // 2. Feierabend & Belastung
     const avgClosing = closingCount > 0 ? Math.round(closingSum / closingCount) : 0;
     document.getElementById('metric-closing-load').innerText = `${avgClosing} Mails im Schnitt`;
     document.getElementById('metric-high-load-hours').innerText = `${highLoadHoursCount} Stunden gesamt`;
 
-    // 3. Postfach-Dominanz
     const grandTotal = totalV + totalE + totalR;
     const shareV = grandTotal > 0 ? Math.round((totalV / grandTotal) * 100) : 0;
     const shareE = grandTotal > 0 ? Math.round((totalE / grandTotal) * 100) : 0;
@@ -765,7 +784,6 @@ function runAdvancedAnalysis() {
         </div>
     `;
 
-    // 4. Wochentags-Muster
     const weekdayContainer = document.getElementById('weekday-pattern-list');
     weekdayContainer.innerHTML = '';
     const days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"];
