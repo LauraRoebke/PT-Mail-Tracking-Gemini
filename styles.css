@@ -36,14 +36,12 @@ body {
     min-height: 100vh;
 }
 
-/* Container skaliert sauber auf hochauflösenden 1440p / 1600p Bildschirmen */
 .container {
     max-width: 1600px;
     margin: 0 auto;
     padding: 24px 32px;
 }
 
-/* Header großzügiger */
 header {
     display: flex;
     justify-content: space-between;
@@ -88,7 +86,6 @@ header {
     transform: translateY(-1px);
 }
 
-/* Tabs */
 .tabs {
     display: flex;
     gap: 12px;
@@ -121,7 +118,6 @@ header {
     display: block;
 }
 
-/* Karten & Filterleiste */
 .card {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
@@ -165,6 +161,11 @@ select {
     min-width: 140px;
 }
 
+.button-group {
+    display: flex;
+    gap: 10px;
+}
+
 .btn-primary {
     background: var(--accent-teal);
     color: #fff;
@@ -182,7 +183,23 @@ select {
     transform: translateY(-1px);
 }
 
-/* Tabelle auf 1600p Monitoren perfekt proportioniert */
+.btn-secondary {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    border-color: #e07a5f;
+    color: #e07a5f;
+}
+
 .table-responsive {
     overflow-x: auto;
 }
@@ -244,7 +261,6 @@ select {
     font-size: 15px;
 }
 
-/* Dashboard / KPIs */
 .kpi-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
