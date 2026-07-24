@@ -156,7 +156,7 @@
             <div class="charts-grid" style="margin-bottom:24px;">
                 <div class="card" style="margin-bottom:0;">
                     <h3 style="font-size:14px; margin-bottom:10px; color:var(--text-main);" id="chart-main-title">Entwicklung im Zeitraum</h3>
-                    <div style="height:300px; position:relative;">
+                    <div style="height:320px; position:relative;">
                         <canvas id="mainAnalysisChart"></canvas>
                     </div>
                 </div>
@@ -165,7 +165,7 @@
             <!-- KOMMENTAR / NOTIZEN LOGS FÜR DEN GEFILTERTEN ZEITRAUM -->
             <h3 style="font-size:15px; margin-bottom:12px; color:var(--text-main);">🏷️ Tageskommentare & Besonderheiten im ausgewählten Zeitraum</h3>
             <div id="analysis-comments-list" class="comments-log-container">
-                <p style="color:var(--text-muted); font-size:13px;">Keine Tagesnotizen vorhanden.</p>
+                <p style="color:var(--text-muted); font-size:13px;">Keine Tagesnotizen in dieser Auswahl erfasst.</p>
             </div>
         </div>
     </div>
@@ -449,6 +449,42 @@
 
     let mainChart;
 
+    // Custom Plugin für das Zeichnen der 🏷️ Symbole direkt über den Balken/Datenpunkten
+    const tagSymbolPlugin = {
+        id: 'tagSymbolPlugin',
+        afterDatasetsDraw(chart) {
+            const { ctx } = chart;
+            const activeCommentsMap = chart.config.options.plugins.tagCommentsMap || [];
+
+            chart.data.labels.forEach((label, index) => {
+                const commentText = activeCommentsMap[index];
+                if (commentText) {
+                    let topY = chart.scales.y.bottom;
+                    let xPos = null;
+
+                    chart.data.datasets.forEach((meta, dsIndex) => {
+                        const metaElement = chart.getDatasetMeta(dsIndex);
+                        if (metaElement && metaElement.data[index]) {
+                            const elem = metaElement.data[index];
+                            if (elem.y < topY) topY = elem.y;
+                            xPos = elem.x;
+                        }
+                    });
+
+                    if (xPos !== null) {
+                        ctx.save();
+                        ctx.font = '14px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('🏷️', xPos, topY - 8);
+                        ctx.restore();
+                    }
+                }
+            });
+        }
+    };
+
+    Chart.register(tagSymbolPlugin);
+
     function runAnalysis() {
         const viewType = document.getElementById('analysis-view-type').value;
         const selectedDept = document.getElementById('analysis-dept-filter').value;
@@ -458,6 +494,7 @@
         let labels = [];
         let datasets = [];
         let comments = [];
+        let indexCommentsMap = []; // speichert pro Index (X-Achse) den Kommentar für das Chart-Plugin
 
         let peakV = { val: 0, time: '-' }, peakE = { val: 0, time: '-' }, peakR = { val: 0, time: '-' };
 
@@ -473,13 +510,11 @@
 
         const daysList = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 
-        // KPI Visibility steuern je nach Abteilungsfilter
         document.getElementById('card-kpi-v').style.display = (selectedDept === 'all' || selectedDept === 'vertrieb') ? 'block' : 'none';
         document.getElementById('card-kpi-e').style.display = (selectedDept === 'all' || selectedDept === 'einkauf') ? 'block' : 'none';
         document.getElementById('card-kpi-r').style.display = (selectedDept === 'all' || selectedDept === 'rechnungen') ? 'block' : 'none';
 
         if (viewType === 'day') {
-            // TAGESANSICHT
             labels = hours;
             const year = selectedDate.getFullYear();
             const kw = getISOWeek(selectedDate);
@@ -492,30 +527,35 @@
             const rows = item ? (Array.isArray(item) ? item : item.rows) : [];
             const comment = (item && !Array.isArray(item)) ? item.comment : "";
 
-            if (comment) comments.push({ context: `${dayName} (${selectedDate.toLocaleDateString()})`, comment });
+            if (comment) {
+                comments.push({ context: `${dayName} (${selectedDate.toLocaleDateString()})`, comment });
+                indexCommentsMap[labels.length - 1] = comment; // am Ende anheften
+            }
             updatePeaks(rows, dayName);
 
             const dataV = hours.map((_, i) => rows[i]?.vertrieb || 0);
             const dataE = hours.map((_, i) => rows[i]?.einkauf || 0);
             const dataR = hours.map((_, i) => rows[i]?.rechnungen || 0);
 
-            datasets = createDatasets(selectedDept, dataV, dataE, dataR, 'line');
+            datasets = createDatasets(selectedDept, dataV, dataE, dataR);
 
         } else if (viewType === 'week') {
-            // WOCHENANSICHT
             labels = daysList;
             const year = selectedDate.getFullYear();
             const kw = getISOWeek(selectedDate);
 
             let dataV = [], dataE = [], dataR = [];
 
-            daysList.forEach(day => {
+            daysList.forEach((day, idx) => {
                 const key = `${year}_KW${kw}_${day}`;
                 const item = store[key];
                 const rows = item ? (Array.isArray(item) ? item : item.rows) : [];
                 const comment = (item && !Array.isArray(item)) ? item.comment : "";
 
-                if (comment) comments.push({ context: `${day} (KW ${kw})`, comment });
+                if (comment) {
+                    comments.push({ context: `${day} (KW ${kw})`, comment });
+                    indexCommentsMap[idx] = comment;
+                }
                 updatePeaks(rows, day);
 
                 let maxV = 0, maxE = 0, maxR = 0;
@@ -529,12 +569,10 @@
                 dataV.push(maxV); dataE.push(maxE); dataR.push(maxR);
             });
 
-            datasets = createDatasets(selectedDept, dataV, dataE, dataR, 'bar');
+            datasets = createDatasets(selectedDept, dataV, dataE, dataR);
 
         } else if (viewType === 'month') {
-            // MONATSANSICHT (Aggregiert auf Wochen im Monat)
             const year = selectedDate.getFullYear();
-            const month = selectedDate.getMonth();
             labels = ["Woche 1", "Woche 2", "Woche 3", "Woche 4", "Woche 5"];
 
             let dataV = new Array(5).fill(0), dataE = new Array(5).fill(0), dataR = new Array(5).fill(0);
@@ -546,11 +584,12 @@
                     if (item) {
                         const comment = !Array.isArray(item) ? item.comment : "";
                         const rows = Array.isArray(item) ? item : item.rows;
-
-                        // Einfache Zuordnung von KW zu Monatswoche
                         const weekIdx = Math.min(Math.floor((kw % 4.3)), 4);
 
-                        if (comment) comments.push({ context: `KW ${kw} (${day})`, comment });
+                        if (comment) {
+                            comments.push({ context: `KW ${kw} (${day})`, comment });
+                            indexCommentsMap[weekIdx] = (indexCommentsMap[weekIdx] ? indexCommentsMap[weekIdx] + " | " : "") + `${day}: ${comment}`;
+                        }
                         updatePeaks(rows, `KW ${kw}`);
 
                         if (rows) {
@@ -564,10 +603,9 @@
                 });
             }
 
-            datasets = createDatasets(selectedDept, dataV, dataE, dataR, 'bar');
+            datasets = createDatasets(selectedDept, dataV, dataE, dataR);
 
         } else if (viewType === 'year') {
-            // JAHRESANSICHT (KW 1 – 52)
             const year = document.getElementById('analysis-year-picker').value;
             labels = Array.from({ length: 52 }, (_, i) => `KW ${i + 1}`);
 
@@ -575,6 +613,8 @@
 
             for (let kw = 1; kw <= 52; kw++) {
                 let maxV = 0, maxE = 0, maxR = 0;
+                let kwComments = [];
+
                 daysList.forEach(day => {
                     const key = `${year}_KW${kw}_${day}`;
                     const item = store[key];
@@ -582,7 +622,10 @@
                         const comment = !Array.isArray(item) ? item.comment : "";
                         const rows = Array.isArray(item) ? item : item.rows;
 
-                        if (comment) comments.push({ context: `KW ${kw} (${day})`, comment });
+                        if (comment) {
+                            comments.push({ context: `KW ${kw} (${day})`, comment });
+                            kwComments.push(`${day}: ${comment}`);
+                        }
                         updatePeaks(rows, `KW ${kw}`);
 
                         if (rows) {
@@ -594,10 +637,15 @@
                         }
                     }
                 });
+
+                if (kwComments.length > 0) {
+                    indexCommentsMap[kw - 1] = kwComments.join(" | ");
+                }
+
                 dataV.push(maxV); dataE.push(maxE); dataR.push(maxR);
             }
 
-            datasets = createDatasets(selectedDept, dataV, dataE, dataR, 'bar');
+            datasets = createDatasets(selectedDept, dataV, dataE, dataR);
         }
 
         // KPI UI setzen
@@ -622,11 +670,11 @@
             });
         }
 
-        // Chart zeichnen
-        renderMainChart(labels, datasets, viewType === 'day' ? 'line' : 'bar');
+        // Chart zeichnen mit Tag-Map
+        renderMainChart(labels, datasets, viewType === 'day' ? 'line' : 'bar', indexCommentsMap);
     }
 
-    function createDatasets(dept, v, e, r, defaultType) {
+    function createDatasets(dept, v, e, r) {
         const ds = [];
         if (dept === 'all' || dept === 'vertrieb') {
             ds.push({ label: 'Vertrieb & Aftersales', data: v, backgroundColor: '#1d1f3e', borderColor: '#1d1f3e', tension: 0.3 });
@@ -640,7 +688,7 @@
         return ds;
     }
 
-    function renderMainChart(labels, datasets, chartType) {
+    function renderMainChart(labels, datasets, chartType, indexCommentsMap) {
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
         const textColor = isDark ? '#f0f1f5' : '#2d2f36';
         const gridColor = isDark ? '#2c303c' : '#e3dfd7';
@@ -653,8 +701,21 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: { top: 25 } // Platz für das 🏷️ Symbol oben
+                },
                 plugins: {
-                    legend: { display: true, position: 'top', labels: { color: textColor, font: { family: 'Plus Jakarta Sans', weight: '600' } } }
+                    legend: { display: true, position: 'top', labels: { color: textColor, font: { family: 'Plus Jakarta Sans', weight: '600' } } },
+                    tagCommentsMap: indexCommentsMap,
+                    tooltip: {
+                        callbacks: {
+                            afterBody: function(context) {
+                                const dataIndex = context[0].dataIndex;
+                                const comment = indexCommentsMap[dataIndex];
+                                return comment ? `\n🏷️ Notiz: ${comment}` : '';
+                            }
+                        }
+                    }
                 },
                 scales: {
                     x: { ticks: { color: textColor }, grid: { display: false } },
