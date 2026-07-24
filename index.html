@@ -23,11 +23,11 @@
             <div class="brand-subtitle">Erfassung & Analyse · Vertrieb, Einkauf, Rechnungen</div>
         </div>
         <div class="header-actions">
-            <!-- Versteckter File-Input für Upload -->
+            <!-- Versteckter File-Input für Import -->
             <input type="file" id="import-file" style="display:none" accept=".json" onchange="importData(event)">
             
-            <button class="icon-btn" onclick="document.getElementById('import-file').click()">📂 Upload</button>
-            <button class="icon-btn" onclick="exportData()">💾 Exportieren</button>
+            <button class="icon-btn" onclick="document.getElementById('import-file').click()">📂 Import</button>
+            <button class="icon-btn" onclick="exportData()">💾 Upload</button>
             <button class="theme-toggle-btn" onclick="toggleTheme()" id="theme-btn">🌙 Dark Mode</button>
         </div>
     </header>
@@ -390,16 +390,23 @@
         });
     }
 
+    // UPLOAD FUNKTION (Generiert Backup-Datei mit Datum & Uhrzeit)
     function exportData() {
+        const now = new Date();
+        const dateStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
+        const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '-'); // HH-MM-SS
+        const fileName = `EmailTracker_Backup_${dateStr}_${timeStr}.json`;
+
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(store));
         const downloadAnchor = document.createElement('a');
         downloadAnchor.setAttribute("href", dataStr);
-        downloadAnchor.setAttribute("download", `email_tracking_backup_${new Date().toISOString().slice(0,10)}.json`);
+        downloadAnchor.setAttribute("download", fileName);
         document.body.appendChild(downloadAnchor);
         downloadAnchor.click();
         downloadAnchor.remove();
     }
 
+    // IMPORT FUNKTION (Liest ausgewählte Backup-Datei ein)
     function importData(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -412,7 +419,7 @@
                     store = importedStore;
                     localStorage.setItem('email_tracking_db', JSON.stringify(store));
                     loadTableData();
-                    alert("✓ Daten erfolgreich hochgeladen!");
+                    alert("✓ Daten erfolgreich importiert!");
                 } else {
                     alert("⚠️ Die Datei hat ein ungültiges Format.");
                 }
