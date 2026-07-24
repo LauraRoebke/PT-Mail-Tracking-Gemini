@@ -9,7 +9,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Externes Stylesheet eingebunden -->
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -24,6 +23,10 @@
             <div class="brand-subtitle">Erfassung & Analyse · Vertrieb, Einkauf, Rechnungen</div>
         </div>
         <div class="header-actions">
+            <!-- Versteckter File-Input für Upload -->
+            <input type="file" id="import-file" style="display:none" accept=".json" onchange="importData(event)">
+            
+            <button class="icon-btn" onclick="document.getElementById('import-file').click()">📂 Upload</button>
             <button class="icon-btn" onclick="exportData()">💾 Exportieren</button>
             <button class="theme-toggle-btn" onclick="toggleTheme()" id="theme-btn">🌙 Dark Mode</button>
         </div>
@@ -171,7 +174,7 @@
             kwSelect.add(new Option('KW ' + kw, kw));
             chartKwSelect.add(new Option('KW ' + kw, kw));
         }
-        kwSelect.value = 14; // Default z.B. KW 14
+        kwSelect.value = 14;
         chartKwSelect.value = 14;
     }
 
@@ -395,6 +398,29 @@
         document.body.appendChild(downloadAnchor);
         downloadAnchor.click();
         downloadAnchor.remove();
+    }
+
+    function importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedStore = JSON.parse(e.target.result);
+                if (typeof importedStore === 'object' && importedStore !== null) {
+                    store = importedStore;
+                    localStorage.setItem('email_tracking_db', JSON.stringify(store));
+                    loadTableData();
+                    alert("✓ Daten erfolgreich hochgeladen!");
+                } else {
+                    alert("⚠️ Die Datei hat ein ungültiges Format.");
+                }
+            } catch (err) {
+                alert("⚠️ Fehler beim Lesen der Datei. Bitte wähle eine gültige JSON-Sicherungsdatei aus.");
+            }
+        };
+        reader.readAsText(file);
     }
 
     initSelectors();
