@@ -21,17 +21,19 @@
                 <p class="brand-subtitle">Ordnerbestände & Rückstau-Analysen · Vertrieb, Einkauf, Rechnungen</p>
             </div>
             <div class="header-actions">
-                <button class="icon-btn" id="importBtn">📁 Import</button>
-                <button class="icon-btn" id="uploadBtn">📤 Upload</button>
-                <button class="theme-toggle-btn" id="themeToggleBtn">☀️ Light Mode</button>
+                <button class="icon-btn" onclick="exportData()">📁 Export</button>
+                <label class="icon-btn" style="cursor: pointer;">
+                    📤 Upload <input type="file" id="importFile" style="display: none;" onchange="importData(event)">
+                </label>
+                <button class="theme-toggle-btn" id="theme-btn" onclick="toggleTheme()">☀️ Light Mode</button>
             </div>
         </header>
 
         <!-- Navigation Tabs -->
         <div class="tabs">
-            <button class="tab-btn active" data-target="datenerfassung">Datenerfassung</button>
-            <button class="tab-btn" data-target="diagramme">Diagramme</button>
-            <button class="tab-btn" data-target="auffaelligkeiten">Auffälligkeiten & Auslastung</button>
+            <button class="tab-btn active" onclick="switchTab('datenerfassung')">Datenerfassung</button>
+            <button class="tab-btn" onclick="switchTab('diagramme')">Diagramme</button>
+            <button class="tab-btn" onclick="switchTab('auffaelligkeiten')">Auffälligkeiten & Auslastung</button>
         </div>
 
         <!-- TAB 1: DATENERFASSUNG -->
@@ -39,36 +41,39 @@
             <div class="card">
                 <div class="filter-bar">
                     <div class="control-group">
-                        <label>Zeitraum-Ansicht</label>
-                        <select id="timeViewSelect">
-                            <option value="week">Woche (KW)</option>
-                            <option value="month">Monat</option>
-                            <option value="year">Jahr</option>
+                        <label>Jahr</label>
+                        <select id="select-year" onchange="handleSelectorChange('year')"></select>
+                    </div>
+
+                    <div class="control-group">
+                        <label>Kalenderwoche (KW)</label>
+                        <select id="select-kw" onchange="handleSelectorChange('kw')"></select>
+                    </div>
+
+                    <div class="control-group">
+                        <label>Wochentag</label>
+                        <select id="select-day" onchange="handleSelectorChange('day')">
+                            <option value="Montag">Montag</option>
+                            <option value="Dienstag">Dienstag</option>
+                            <option value="Mittwoch">Mittwoch</option>
+                            <option value="Donnerstag">Donnerstag</option>
+                            <option value="Freitag">Freitag</option>
+                            <option value="Samstag">Samstag</option>
                         </select>
                     </div>
 
                     <div class="control-group">
                         <label>Datum Auswählen</label>
                         <div class="date-nav-group">
-                            <button class="nav-arrow-btn" id="prevDateBtn">◀</button>
-                            <input type="date" id="datePickerInput">
-                            <button class="nav-arrow-btn" id="nextDateBtn">▶</button>
+                            <button class="nav-arrow-btn" onclick="changeDateByOffset(-1, 'entry')">◀</button>
+                            <input type="date" id="entry-date-picker" onchange="handleDatePickerChange()">
+                            <button class="nav-arrow-btn" onclick="changeDateByOffset(1, 'entry')">▶</button>
                         </div>
                     </div>
 
-                    <div class="control-group">
-                        <label>Abteilung</label>
-                        <select id="departmentFilter">
-                            <option value="all">Alle Abteilungen</option>
-                            <option value="vertrieb">Vertrieb & Aftersales</option>
-                            <option value="einkauf">Einkauf</option>
-                            <option value="rechnungen">Rechnungen</option>
-                        </select>
-                    </div>
-
                     <div class="button-group right-aligned">
-                        <button class="btn-secondary" id="resetDataBtn">Zurücksetzen</button>
-                        <button class="btn-primary" id="saveDataBtn">Speichern</button>
+                        <button class="btn-secondary" onclick="resetCurrentDayData()">Zurücksetzen</button>
+                        <button class="btn-primary" onclick="saveCurrentDayData()">Tag Speichern</button>
                     </div>
                 </div>
 
@@ -76,43 +81,32 @@
                 <div class="kpi-grid">
                     <div class="kpi-card">
                         <div class="kpi-title">VERTRIEB & AFTERSALES (PEAK)</div>
-                        <div class="kpi-value" id="kpiVertriebPeak">134 Mails</div>
-                        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="kpiVertriebSub">Spitze: Mittwoch, 08:00 Uhr</div>
+                        <div class="kpi-value" id="sum-vertrieb">Peak heute: 0</div>
                     </div>
                     <div class="kpi-card">
                         <div class="kpi-title">EINKAUF (PEAK)</div>
-                        <div class="kpi-value" id="kpiEinkaufPeak">16 Mails</div>
-                        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="kpiEinkaufSub">Spitze: Donnerstag, 08:00 Uhr</div>
+                        <div class="kpi-value" id="sum-einkauf">Peak heute: 0</div>
                     </div>
                     <div class="kpi-card">
                         <div class="kpi-title">RECHNUNGEN (PEAK)</div>
-                        <div class="kpi-value" id="kpiRechnungenPeak">63 Mails</div>
-                        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="kpiRechnungenSub">Spitze: Mittwoch, 08:00 Uhr</div>
+                        <div class="kpi-value" id="sum-rechnungen">Peak heute: 0</div>
                     </div>
                 </div>
 
                 <!-- Tracking Tabelle -->
                 <div class="table-responsive">
-                    <table class="tracking-table" id="trackingTable">
+                    <table class="tracking-table">
                         <thead>
                             <tr>
-                                <th>Wochentag</th>
+                                <th>Uhrzeit</th>
                                 <th>Vertrieb & Aftersales</th>
                                 <th>Einkauf</th>
                                 <th>Rechnungen</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="hourly-rows">
                             <!-- Wird per JS befüllt -->
                         </tbody>
-                        <tfoot>
-                            <tr class="table-totals">
-                                <td>Wochenschnitt / Summe</td>
-                                <td id="totalVertrieb">-</td>
-                                <td id="totalEinkauf">-</td>
-                                <td id="totalRechnungen">-</td>
-                            </tr>
-                        </tfoot>
                     </table>
                 </div>
 
@@ -120,11 +114,8 @@
                 <div class="comment-section">
                     <label>Tageskommentare & Besonderheiten im ausgewählten Zeitraum</label>
                     <div style="display: flex; gap: 10px;">
-                        <input type="text" id="commentInput" placeholder="Notiz hinzufügen (z.B. Systemausfall, hoher Andrang)...">
-                        <button class="btn-primary" id="addCommentBtn" style="white-space: nowrap;">Hinzufügen</button>
-                    </div>
-                    <div class="comments-log-container" id="commentsLogContainer" style="margin-top: 10px;">
-                        <!-- Dynamische Kommentare -->
+                        <input type="text" id="day-comment" placeholder="Notiz hinzufügen (z.B. Systemausfall, hoher Andrang)..." oninput="markUnsavedChanges()">
+                        <button class="btn-primary" onclick="saveCurrentDayData()" style="white-space: nowrap;">Hinzufügen</button>
                     </div>
                 </div>
             </div>
@@ -133,94 +124,118 @@
         <!-- TAB 2: DIAGRAMME -->
         <div id="diagramme" class="tab-content">
             <div class="card">
+                <div class="filter-bar" style="margin-bottom: 15px;">
+                    <div class="control-group">
+                        <label>Ansicht</label>
+                        <select id="analysis-view-type" onchange="toggleAnalysisFilterInputs()">
+                            <option value="day">Einzeltag (Stunden)</option>
+                            <option value="week">Woche (Tage)</option>
+                            <option value="month">Monat (Wochen)</option>
+                            <option value="year">Jahr (Wochen)</option>
+                        </select>
+                    </div>
+                    <div class="control-group" id="filter-date-group">
+                        <label>Datum / Woche Basis</label>
+                        <div class="date-nav-group">
+                            <button class="nav-arrow-btn" onclick="changeDateByOffset(-1, 'analysis')">◀</button>
+                            <input type="date" id="analysis-date-picker" onchange="runAnalysis()">
+                            <button class="nav-arrow-btn" onclick="changeDateByOffset(1, 'analysis')">▶</button>
+                        </div>
+                    </div>
+                    <div class="control-group" id="filter-year-group" style="display: none;">
+                        <label>Jahr Auswählen</label>
+                        <select id="analysis-year-picker" onchange="runAnalysis()"></select>
+                    </div>
+                    <div class="control-group">
+                        <label>Abteilung Filter</label>
+                        <select id="analysis-dept-filter" onchange="runAnalysis()">
+                            <option value="all">Alle Abteilungen</option>
+                            <option value="vertrieb">Vertrieb & Aftersales</option>
+                            <option value="einkauf">Einkauf</option>
+                            <option value="rechnungen">Rechnungen</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- KPI Grid für Diagramme -->
+                <div class="kpi-grid">
+                    <div class="kpi-card" id="card-kpi-v">
+                        <div class="kpi-title">VERTRIEB PEAK</div>
+                        <div class="kpi-value" id="kpi-v-peak">0 Mails</div>
+                        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="kpi-v-time">-</div>
+                    </div>
+                    <div class="kpi-card" id="card-kpi-e">
+                        <div class="kpi-title">EINKAUF PEAK</div>
+                        <div class="kpi-value" id="kpi-e-peak">0 Mails</div>
+                        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="kpi-e-time">-</div>
+                    </div>
+                    <div class="kpi-card" id="card-kpi-r">
+                        <div class="kpi-title">RECHNUNGEN PEAK</div>
+                        <div class="kpi-value" id="kpi-r-peak">0 Mails</div>
+                        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="kpi-r-time">-</div>
+                    </div>
+                </div>
+
                 <h3 style="margin-bottom: 6px; font-size: 18px;">Entwicklung im Zeitraum</h3>
-                <p class="card-desc" style="margin-bottom: 20px;">Grafische Auswertung des Mail- und Ordnerbestands über die Wochentage hinweg.</p>
+                <p class="card-desc" style="margin-bottom: 20px;">Grafische Auswertung des Mail- und Ordnerbestands.</p>
                 <div style="position: relative; height: 380px; width: 100%;">
-                    <canvas id="mainChart"></canvas>
+                    <canvas id="mainAnalysisChart"></canvas>
+                </div>
+
+                <div style="margin-top: 25px;">
+                    <h4 style="font-size: 14px; margin-bottom: 10px; color: var(--text-muted);">Erfasste Notizen im Zeitraum</h4>
+                    <div id="analysis-comments-list" class="comments-log-container"></div>
                 </div>
             </div>
         </div>
 
-        <!-- TAB 3: AUFFÄLLIGKEITEN & AUSLASTUNG (Mit Trend-Indikatoren) -->
+        <!-- TAB 3: AUFFÄLLIGKEITEN & AUSLASTUNG -->
         <div id="auffaelligkeiten" class="tab-content">
             <div class="card">
+                <div class="filter-bar" style="margin-bottom: 15px;">
+                    <div class="control-group">
+                        <label>Auswertungs-Zeitraum</label>gespeicherte
+                        <select id="advanced-range-picker" onchange="runAdvancedAnalysis()">
+                            <option value="kw">Aktuelle KW</option>
+                            <option value="month">Aktuelles Jahr</option>
+                            <option value="all">Gesamter Datenbestand</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>Peak-Schwellenwert (Mails)</label>
+                        <input type="number" id="threshold-input" value="30" oninput="runAdvancedAnalysis()">
+                    </div>
+                </div>
+
                 <h3 style="margin-bottom: 6px; font-size: 18px;">Auffälligkeiten & Auslastungs-Analyse</h3>
-                <p class="card-desc" style="margin-bottom: 20px;">Automatische Erkennung von Engpässen, Spitzenzeiten und Vorwochen-Vergleichen.</p>
+                <p class="card-desc" style="margin-bottom: 20px;">Automatische Erkennung von Engpässen, Spitzenzeiten und Mustern.</p>
                 
                 <div class="analysis-grid">
-                    <!-- Card 1: Vertrieb Trend & Auslastung -->
                     <div class="analysis-card">
-                        <h3>Vertrieb & Aftersales Auslastung</h3>
-                        <p class="card-desc">Analyse der Spitzenlasten inklusive Vorwochen-Trend.</p>
-                        <div class="metric-box">
-                            <span class="metric-label">Höchster Peak</span>
-                            <span class="metric-value" id="anaVertriebPeak">134 Mails (Mi.)</span>
-                        </div>
-                        <div class="metric-box">
-                            <span class="metric-label">Trend vs. Vorwoche</span>
-                            <span class="metric-value" id="anaVertriebTrend" style="color: #4ade80;">↑ +14.2%</span>
-                        </div>
-                        <div class="pattern-list">
-                            <div class="progress-item">
-                                <div class="progress-labels">
-                                    <span>Auslastungs-Index</span>
-                                    <span id="anaVertriebIndex">85%</span>
-                                </div>
-                                <div class="progress-bar-bg">
-                                    <div class="progress-bar-fill" id="anaVertriebBar" style="width: 85%;"></div>
-                                </div>
-                            </div>
-                        </div>
+                        <h3>📈 Rückstau & Abbau Dynamik</h3>
+                        <p class="card-desc">Stundenvergleich zur Strömung des Aufkommens.</p>
+                        <div class="metric-box"><span class="metric-label">Stärkster Aufbau</span><span class="metric-value" id="metric-build-up">-</span></div>
+                        <div class="metric-box"><span class="metric-label">Stärkster Abbau</span><span class="metric-value" id="metric-drain">-</span></div>
+                        <div class="metric-box"><span class="metric-label">Größte Stagnation</span><span class="metric-value" id="metric-stagnation">-</span></div>
                     </div>
 
-                    <!-- Card 2: Einkauf Trend & Auslastung -->
                     <div class="analysis-card">
-                        <h3>Einkauf Auslastung</h3>
-                        <p class="card-desc">Analyse der Spitzenlasten inklusive Vorwochen-Trend.</p>
-                        <div class="metric-box">
-                            <span class="metric-label">Höchster Peak</span>
-                            <span class="metric-value" id="anaEinkaufPeak">16 Mails (Do.)</span>
-                        </div>
-                        <div class="metric-box">
-                            <span class="metric-label">Trend vs. Vorwoche</span>
-                            <span class="metric-value" id="anaEinkaufTrend" style="color: #f87171;">↓ -3.5%</span>
-                        </div>
-                        <div class="pattern-list">
-                            <div class="progress-item">
-                                <div class="progress-labels">
-                                    <span>Auslastungs-Index</span>
-                                    <span id="anaEinkaufIndex">25%</span>
-                                </div>
-                                <div class="progress-bar-bg">
-                                    <div class="progress-bar-fill" id="anaEinkaufBar" style="width: 25%;"></div>
-                                </div>
-                            </div>
-                        </div>
+                        <h3>⚡ Lastspitzen & Feierabend</h3>
+                        <p class="card-desc">Zusammenfassung kritischer Auslastungsgrenzen.</p>
+                        <div class="metric-box"><span class="metric-label">Ø Feierabend-Bestand (17 Uhr)</span><span class="metric-value" id="metric-closing-load">-</span></div>
+                        <div class="metric-box"><span class="metric-label">Stunden über Schwellenwert</span><span class="metric-value" id="metric-high-load-hours">-</span></div>
                     </div>
 
-                    <!-- Card 3: Rechnungen Trend & Auslastung -->
                     <div class="analysis-card">
-                        <h3>Rechnungen Auslastung</h3>
-                        <p class="card-desc">Analyse der Spitzenlasten inklusive Vorwochen-Trend.</p>
-                        <div class="metric-box">
-                            <span class="metric-label">Höchster Peak</span>
-                            <span class="metric-value" id="anaRechnungenPeak">63 Mails (Mi.)</span>
-                        </div>
-                        <div class="metric-box">
-                            <span class="metric-label">Trend vs. Vorwoche</span>
-                            <span class="metric-value" id="anaRechnungenTrend" style="color: #4ade80;">↑ +8.0%</span>
-                        </div>
-                        <div class="pattern-list">
-                            <div class="progress-item">
-                                <div class="progress-labels">
-                                    <span>Auslastungs-Index</span>
-                                    <span id="anaRechnungenIndex">55%</span>
-                                </div>
-                                <div class="progress-bar-bg">
-                                    <div class="progress-bar-fill" id="anaRechnungenBar" style="width: 55%;"></div>
-                                </div>
-                            </div>
-                        </div>
+                        <h3>🏢 Abteilungs-Verteilung</h3>
+                        <p class="card-desc">Anteil am Gesamtvolumen im gewählten Zeitraum.</p>
+                        <div class="dept-share-container" id="dept-share-list"></div>
+                    </div>
+
+                    <div class="analysis-card" style="grid-column: 1 / -1;">
+                        <h3>📅 Wochentag-Vergleich</h3>
+                        <p class="card-desc">Durchschnittlicher Pegelstand im Wochenverlauf.</p>
+                        <div class="pattern-list" id="weekday-pattern-list"></div>
                     </div>
                 </div>
             </div>
