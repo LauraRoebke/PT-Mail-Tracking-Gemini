@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Mail Tracking System - Firmen-Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #1b365d;
+            --accent: #4a90e2;
+            --bg: #f4f6f9;
+            --card-bg: #ffffff;
+            --text: #333333;
+            --border: #d3d3d3;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 22px;
+        }
+
+        header p {
+            margin: 5px 0 0 0;
+            font-size: 13px;
+            opacity: 0.8;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            border: none;
+            background: #e0e6ed;
+            color: var(--primary);
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        label {
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        select, input[type="number"] {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .tracking-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .tracking-table th, .tracking-table td {
+            border: 1px solid var(--border);
+            padding: 10px;
+            text-align: center;
+        }
+
+        .tracking-table th {
+            background-color: #f0f4f8;
+            color: var(--primary);
+        }
+
+        .tracking-table input[type="number"] {
+            width: 70px;
+            text-align: center;
+        }
+
+        .btn {
+            background: var(--accent);
+            color: white;
+            padding: 10px 18px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn-success {
+            background: #2e7d32;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .kpi-card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid var(--accent);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .kpi-card h4 {
+            margin: 0;
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .kpi-card p {
+            margin: 5px 0 0 0;
+            font-size: 22px;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div>
+            <h1>E-Mail Tracking System</h1>
+            <p>Langzeiterfassung & Analyse (Vertrieb & Aftersales, Einkauf, Rechnungen)</p>
+        </div>
+        <button class="btn" onclick="exportData()">💾 Daten Sichern/Exportieren</button>
+    </header>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('datenerfassung')">✍️ Stündliche Datenerfassung</button>
+        <button class="tab-btn" onclick="switchTab('diagramme')">📊 Diagramme & Auswertung</button>
+    </div>
+
+    <!-- TAB 1: DATENERFASSUNG -->
+    <div id="datenerfassung" class="tab-content active">
+        <div class="card">
+            <div class="filter-bar">
+                <div>
+                    <label>Jahr:</label>
+                    <select id="select-year" onchange="loadTableData()"></select>
+                </div>
+                <div>
+                    <label>Kalenderwoche (KW):</label>
+                    <select id="select-kw" onchange="loadTableData()"></select>
+                </div>
+                <div>
+                    <label>Wochentag:</label>
+                    <select id="select-day" onchange="loadTableData()">
+                        <option value="Montag">Montag</option>
+                        <option value="Dienstag">Dienstag</option>
+                        <option value="Mittwoch">Mittwoch</option>
+                        <option value="Donnerstag">Donnerstag</option>
+                        <option value="Freitag">Freitag</option>
+                        <option value="Samstag">Samstag (Manuell)</option>
+                    </select>
+                </div>
+                <button class="btn btn-success" onclick="saveCurrentDayData()">Speichern</button>
+            </div>
+
+            <table class="tracking-table">
+                <thead>
+                    <tr>
+                        <th>Uhrzeit</th>
+                        <th>Vertrieb & Aftersales</th>
+                        <th>Einkauf</th>
+                        <th>Rechnungen</th>
+                        <th>Gesamt Stündlich</th>
+                    </tr>
+                </thead>
+                <tbody id="hourly-rows">
+                    <!-- Dynamic rows 08:00 to 17:00 -->
+                </tbody>
+                <tfoot>
+                    <tr style="font-weight: bold; background: #eef2f7;">
+                        <td>Tagessumme</td>
+                        <td id="sum-vertrieb">0</td>
+                        <td id="sum-einkauf">0</td>
+                        <td id="sum-rechnungen">0</td>
+                        <td id="sum-total">0</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- TAB 2: DIAGRAMME & AUSWERTUNG -->
+    <div id="diagramme" class="tab-content">
+        <div class="card">
+            <div class="filter-bar">
+                <div>
+                    <label>Auswertungsjahr:</label>
+                    <select id="chart-year" onchange="updateCharts()"></select>
+                </div>
+                <div>
+                    <label>Auswertungs-KW:</label>
+                    <select id="chart-kw" onchange="updateCharts()"></select>
+                </div>
+            </div>
+
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <h4>Mails in dieser KW</h4>
+                    <p id="kpi-kw-total">0</p>
+                </div>
+                <div class="kpi-card">
+                    <h4>Stärkste Abteilung</h4>
+                    <p id="kpi-top-dept">-</p>
+                </div>
+                <div class="kpi-card">
+                    <h4>Stärkste Uhrzeit</h4>
+                    <p id="kpi-top-hour">-</p>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="card">
+                    <h3>Mails nach Abteilung (KW)</h3>
+                    <canvas id="deptChart"></canvas>
+                </div>
+                <div class="card">
+                    <h3>Tagesverlauf (Stündlich)</h3>
+                    <canvas id="hourlyTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const hours = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
+    let store = JSON.parse(localStorage.getItem('email_tracking_db')) || {};
+
+    function initSelectors() {
+        const yearSelect = document.getElementById('select-year');
+        const chartYearSelect = document.getElementById('chart-year');
+        const currentYear = new Date().getFullYear();
+        
+        for (let y = currentYear - 2; y <= currentYear + 5; y++) {
+            yearSelect.add(new Option(y, y));
+            chartYearSelect.add(new Option(y, y));
+        }
+        yearSelect.value = currentYear;
+        chartYearSelect.value = currentYear;
+
+        const kwSelect = document.getElementById('select-kw');
+        const chartKwSelect = document.getElementById('chart-kw');
+        for (let kw = 1; kw <= 52; kw++) {
+            kwSelect.add(new Option('KW ' + kw, kw));
+            chartKwSelect.add(new Option('KW ' + kw, kw));
+        }
+        kwSelect.value = 1;
+        chartKwSelect.value = 1;
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('hourly-rows');
+        tbody.innerHTML = '';
+
+        hours.forEach((h, index) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><b>${h}</b></td>
+                <td><input type="number" min="0" id="v_${index}" value="0" onchange="calculateSums()"></td>
+                <td><input type="number" min="0" id="e_${index}" value="0" onchange="calculateSums()"></td>
+                <td><input type="number" min="0" id="r_${index}" value="0" onchange="calculateSums()"></td>
+                <td id="row_tot_${index}" style="font-weight:bold;">0</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function getKey() {
+        const y = document.getElementById('select-year').value;
+        const kw = document.getElementById('select-kw').value;
+        const day = document.getElementById('select-day').value;
+        return `${y}_KW${kw}_${day}`;
+    }
+
+    function saveCurrentDayData() {
+        const key = getKey();
+        const dayData = hours.map((h, i) => ({
+            hour: h,
+            vertrieb: parseInt(document.getElementById(`v_${i}`).value) || 0,
+            einkauf: parseInt(document.getElementById(`e_${i}`).value) || 0,
+            rechnungen: parseInt(document.getElementById(`r_${i}`).value) || 0,
+        }));
+
+        store[key] = dayData;
+        localStorage.setItem('email_tracking_db', JSON.stringify(store));
+        alert('Eingaben für ' + key + ' erfolgreich gespeichert!');
+    }
+
+    function loadTableData() {
+        const key = getKey();
+        const data = store[key] || [];
+
+        hours.forEach((h, i) => {
+            const rowData = data[i] || { vertrieb: 0, einkauf: 0, rechnungen: 0 };
+            document.getElementById(`v_${i}`).value = rowData.vertrieb;
+            document.getElementById(`e_${i}`).value = rowData.einkauf;
+            document.getElementById(`r_${i}`).value = rowData.rechnungen;
+        });
+        calculateSums();
+    }
+
+    function calculateSums() {
+        let sumV = 0, sumE = 0, sumR = 0, grandTotal = 0;
+
+        hours.forEach((h, i) => {
+            const v = parseInt(document.getElementById(`v_${i}`).value) || 0;
+            const e = parseInt(document.getElementById(`e_${i}`).value) || 0;
+            const r = parseInt(document.getElementById(`r_${i}`).value) || 0;
+            const rowTot = v + e + r;
+
+            document.getElementById(`row_tot_${i}`).innerText = rowTot;
+
+            sumV += v;
+            sumE += e;
+            sumR += r;
+            grandTotal += rowTot;
+        });
+
+        document.getElementById('sum-vertrieb').innerText = sumV;
+        document.getElementById('sum-einkauf').innerText = sumE;
+        document.getElementById('sum-rechnungen').innerText = sumR;
+        document.getElementById('sum-total').innerText = grandTotal;
+    }
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        
+        document.getElementById(tabId).classList.add('active');
+        event.target.classList.add('active');
+
+        if(tabId === 'diagramme') {
+            updateCharts();
+        }
+    }
+
+    let deptChart, hourlyTrendChart;
+
+    function updateCharts() {
+        const year = document.getElementById('chart-year').value;
+        const kw = document.getElementById('chart-kw').value;
+        const days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+
+        let totalV = 0, totalE = 0, totalR = 0;
+        let hourlySums = new Array(hours.length).fill(0);
+
+        days.forEach(day => {
+            const key = `${year}_KW${kw}_${day}`;
+            const data = store[key] || [];
+            data.forEach((row, i) => {
+                totalV += row.vertrieb || 0;
+                totalE += row.einkauf || 0;
+                totalR += row.rechnungen || 0;
+                hourlySums[i] += (row.vertrieb || 0) + (row.einkauf || 0) + (row.rechnungen || 0);
+            });
+        });
+
+        const totalKW = totalV + totalE + totalR;
+        document.getElementById('kpi-kw-total').innerText = totalKW;
+
+        let topDept = "Vertrieb & Aftersales";
+        if (totalE > totalV && totalE > totalR) topDept = "Einkauf";
+        if (totalR > totalV && totalR > totalE) topDept = "Rechnungen";
+        document.getElementById('kpi-top-dept').innerText = totalKW > 0 ? topDept : "-";
+
+        const maxHourIdx = hourlySums.indexOf(Math.max(...hourlySums));
+        document.getElementById('kpi-top-hour').innerText = totalKW > 0 ? hours[maxHourIdx] : "-";
+
+        if (deptChart) deptChart.destroy();
+        const ctx1 = document.getElementById('deptChart').getContext('2d');
+        deptChart = new Chart(ctx1, {
+            type: 'bar',
+            data: {
+                labels: ['Vertrieb & Aftersales', 'Einkauf', 'Rechnungen'],
+                datasets: [{
+                    label: 'Anzahl Mails',
+                    data: [totalV, totalE, totalR],
+                    backgroundColor: ['#1b365d', '#4a90e2', '#7ed321']
+                }]
+            },
+            options: { responsive: true, plugins: { legend: { display: false } } }
+        });
+
+        if (hourlyTrendChart) hourlyTrendChart.destroy();
+        const ctx2 = document.getElementById('hourlyTrendChart').getContext('2d');
+        hourlyTrendChart = new Chart(ctx2, {
+            type: 'line',
+            data: {
+                labels: hours,
+                datasets: [{
+                    label: 'Gesamt-Mails pro Stunde in dieser KW',
+                    data: hourlySums,
+                    borderColor: '#1b365d',
+                    fill: false,
+                    tension: 0.1
+                }]
+            },
+            options: { responsive: true }
+        });
+    }
+
+    function exportData() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(store));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `email_tracking_backup_${new Date().toISOString().slice(0,10)}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+    }
+
+    initSelectors();
+    renderTable();
+    loadTableData();
+</script>
+
+</body>
+</html>
