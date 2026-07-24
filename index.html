@@ -60,7 +60,10 @@
                         <option value="Samstag">Samstag (Manuell)</option>
                     </select>
                 </div>
-                <button class="btn-primary" onclick="saveCurrentDayData()">Tag Speichern</button>
+                <div class="button-group">
+                    <button class="btn-primary" onclick="saveCurrentDayData()">Tag Speichern</button>
+                    <button class="btn-secondary" onclick="resetCurrentDayData()">🧹 Zurücksetzen</button>
+                </div>
             </div>
 
             <div class="table-responsive">
@@ -77,9 +80,9 @@
                     <tfoot>
                         <tr class="table-totals">
                             <td>Tagesdurchschnitt / Stand</td>
-                            <td id="sum-vertrieb">0</td>
-                            <td id="sum-einkauf">0</td>
-                            <td id="sum-rechnungen">0</td>
+                            <td id="sum-vertrieb">Peak heute: 0</td>
+                            <td id="sum-einkauf">Peak heute: 0</td>
+                            <td id="sum-rechnungen">Peak heute: 0</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -101,8 +104,8 @@
                 </div>
             </div>
 
-            <!-- NEUE PEAK-ANZEIGE PRO ABTEILUNG -->
-            <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr);">
+            <!-- PEAK-ANZEIGE PRO ABTEILUNG -->
+            <div class="kpi-grid">
                 <div class="kpi-card" style="border-left: 4px solid #1d1f3e;">
                     <p class="kpi-title">VERTRIEB & AFTERSALES (PEAK)</p>
                     <p class="kpi-value" id="kpi-v-peak">0 Mails</p>
@@ -164,11 +167,31 @@
         }, 100);
     })();
 
+    // Hilfsfunktion: Berechnet die ISO-Kalenderwoche
+    function getISOWeek(d) {
+        const date = new Date(d.getTime());
+        date.setHours(0, 0, 0, 0);
+        date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+        const week1 = new Date(date.getFullYear(), 0, 4);
+        return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+    }
+
     function initSelectors() {
         const yearSelect = document.getElementById('select-year');
         const chartYearSelect = document.getElementById('chart-year');
-        const currentYear = new Date().getFullYear();
+        const kwSelect = document.getElementById('select-kw');
+        const chartKwSelect = document.getElementById('chart-kw');
+        const daySelect = document.getElementById('select-day');
+
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentKW = getISOWeek(now);
         
+        // Wochentag bestimmen (0 = So, 1 = Mo, ..., 6 = Sa)
+        const daysOfWeek = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+        let currentDay = daysOfWeek[now.getDay()];
+        if (currentDay === "Sonntag") currentDay = "Montag"; // Standard für Sonntag auf Montag setzen
+
         for (let y = currentYear - 2; y <= currentYear + 5; y++) {
             yearSelect.add(new Option(y, y));
             chartYearSelect.add(new Option(y, y));
@@ -176,14 +199,16 @@
         yearSelect.value = currentYear;
         chartYearSelect.value = currentYear;
 
-        const kwSelect = document.getElementById('select-kw');
-        const chartKwSelect = document.getElementById('chart-kw');
         for (let kw = 1; kw <= 52; kw++) {
             kwSelect.add(new Option('KW ' + kw, kw));
             chartKwSelect.add(new Option('KW ' + kw, kw));
         }
-        kwSelect.value = 14;
-        chartKwSelect.value = 14;
+        kwSelect.value = currentKW;
+        chartKwSelect.value = currentKW;
+
+        if ([...daySelect.options].some(opt => opt.value === currentDay)) {
+            daySelect.value = currentDay;
+        }
     }
 
     function renderTable() {
@@ -194,12 +219,44 @@
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${h} Uhr</td>
-                <td><input type="number" min="0" id="v_${index}" value="0" onchange="calculateSums()"></td>
-                <td><input type="number" min="0" id="e_${index}" value="0" onchange="calculateSums()"></td>
-                <td><input type="number" min="0" id="r_${index}" value="0" onchange="calculateSums()"></td>
+                <td><input type="number" min="0" id="v_${index}" value="0" onkeydown="handleTableNavigation(event, 'v', ${index})" onchange="calculateSums()"></td>
+                <td><input type="number" min="0" id="e_${index}" value="0" onkeydown="handleTableNavigation(event, 'e', ${index})" onchange="calculateSums()"></td>
+                <td><input type="number" min="0" id="r_${index}" value="0" onkeydown="handleTableNavigation(event, 'r', ${index})" onchange="calculateSums()"></td>
             `;
             tbody.appendChild(tr);
         });
+    }
+
+    // Tastaturnavigation per Enter und Pfeiltasten
+    function handleTableNavigation(event, col, index) {
+        const cols = ['v', 'e', 'r'];
+        const colIdx = cols.indexOf(col);
+
+        if (event.key === 'Enter' || event.key === 'ArrowDown') {
+            event.preventDefault();
+            if (index + 1 < hours.length) {
+                const nextInput = document.getElementById(`${col}_${index + 1}`);
+                if (nextInput) { nextInput.focus(); nextInput.select(); }
+            }
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (index - 1 >= 0) {
+                const prevInput = document.getElementById(`${col}_${index - 1}`);
+                if (prevInput) { prevInput.focus(); prevInput.select(); }
+            }
+        } else if (event.key === 'ArrowRight') {
+            if (colIdx + 1 < cols.length) {
+                event.preventDefault();
+                const rightInput = document.getElementById(`${cols[colIdx + 1]}_${index}`);
+                if (rightInput) { rightInput.focus(); rightInput.select(); }
+            }
+        } else if (event.key === 'ArrowLeft') {
+            if (colIdx - 1 >= 0) {
+                event.preventDefault();
+                const leftInput = document.getElementById(`${cols[colIdx - 1]}_${index}`);
+                if (leftInput) { leftInput.focus(); leftInput.select(); }
+            }
+        }
     }
 
     function getKey() {
@@ -229,6 +286,18 @@
             btn.innerText = originalText;
             btn.style.background = "var(--accent-teal)";
         }, 1800);
+    }
+
+    function resetCurrentDayData() {
+        if (confirm("Möchtest du die Werte für diesen Tag wirklich auf 0 zurücksetzen?")) {
+            hours.forEach((_, i) => {
+                document.getElementById(`v_${i}`).value = 0;
+                document.getElementById(`e_${i}`).value = 0;
+                document.getElementById(`r_${i}`).value = 0;
+            });
+            saveCurrentDayData();
+            calculateSums();
+        }
     }
 
     function loadTableData() {
@@ -281,7 +350,6 @@
         const kw = document.getElementById('chart-kw').value;
         const days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 
-        // Peaks & Auswertung vorbereiten
         let peakV = { val: 0, hour: "-", day: "-" };
         let peakE = { val: 0, hour: "-", day: "-" };
         let peakR = { val: 0, hour: "-", day: "-" };
@@ -302,12 +370,10 @@
                     const e = row.einkauf || 0;
                     const r = row.rechnungen || 0;
 
-                    // Peak Suche
                     if (v > peakV.val) { peakV.val = v; peakV.hour = row.hour; peakV.day = day; }
                     if (e > peakE.val) { peakE.val = e; peakE.hour = row.hour; peakE.day = day; }
                     if (r > peakR.val) { peakR.val = r; peakR.hour = row.hour; peakR.day = day; }
 
-                    // Aufsummieren für Tagesverlauf
                     hourlyV_Sum[i] += v;
                     hourlyE_Sum[i] += e;
                     hourlyR_Sum[i] += r;
@@ -315,7 +381,6 @@
             }
         });
 
-        // UI-Karten befüllen
         document.getElementById('kpi-v-peak').innerText = `${peakV.val} Mails`;
         document.getElementById('kpi-v-time').innerText = peakV.val > 0 ? `Spitze: ${peakV.day}, ${peakV.hour} Uhr` : "Keine Daten";
 
@@ -325,7 +390,6 @@
         document.getElementById('kpi-r-peak').innerText = `${peakR.val} Mails`;
         document.getElementById('kpi-r-time').innerText = peakR.val > 0 ? `Spitze: ${peakR.day}, ${peakR.hour} Uhr` : "Keine Daten";
 
-        // Tagesdurchschnitt pro Uhrzeit berechnen (falls mehrere Tage eingegeben)
         const divisor = activeDaysCount > 0 ? activeDaysCount : 1;
         const avgV = hourlyV_Sum.map(v => (v / divisor).toFixed(1));
         const avgE = hourlyE_Sum.map(e => (e / divisor).toFixed(1));
@@ -335,7 +399,6 @@
         const textColor = isDark ? '#f0f1f5' : '#2d2f36';
         const gridColor = isDark ? '#2c303c' : '#e3dfd7';
 
-        // Diagramm 1: Max. Peak nach Abteilung
         if (deptChart) deptChart.destroy();
         const ctx1 = document.getElementById('deptChart').getContext('2d');
         deptChart = new Chart(ctx1, {
@@ -360,7 +423,6 @@
             }
         });
 
-        // Diagramm 2: Verlauf über den Tag
         if (hourlyTrendChart) hourlyTrendChart.destroy();
         const ctx2 = document.getElementById('hourlyTrendChart').getContext('2d');
         hourlyTrendChart = new Chart(ctx2, {
@@ -420,7 +482,6 @@
         });
     }
 
-    // UPLOAD FUNKTION (Speichert Backup-Datei)
     function exportData() {
         const now = new Date();
         const dateStr = now.toISOString().slice(0, 10);
@@ -436,7 +497,6 @@
         downloadAnchor.remove();
     }
 
-    // IMPORT FUNKTION (Liest Backup-Datei ein)
     function importData(event) {
         const file = event.target.files[0];
         if (!file) return;
