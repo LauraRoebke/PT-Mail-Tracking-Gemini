@@ -29,11 +29,11 @@
             </div>
         </header>
 
-        <!-- Navigation Tabs -->
+        <!-- Navigation Tabs mit Emojis -->
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('datenerfassung')">Datenerfassung</button>
-            <button class="tab-btn" onclick="switchTab('diagramme')">Diagramme</button>
-            <button class="tab-btn" onclick="switchTab('auffaelligkeiten')">Auffälligkeiten & Auslastung</button>
+            <button class="tab-btn active" onclick="switchTab('datenerfassung')">📊 Datenerfassung</button>
+            <button class="tab-btn" onclick="switchTab('diagramme')">📈 Diagramme</button>
+            <button class="tab-btn" onclick="switchTab('auffaelligkeiten')">🔍 Auffälligkeiten & Auslastung</button>
         </div>
 
         <!-- TAB 1: DATENERFASSUNG -->
@@ -114,7 +114,7 @@
                 <div class="comment-section">
                     <label>Tageskommentare & Besonderheiten im ausgewählten Zeitraum</label>
                     <div style="display: flex; gap: 10px;">
-                        <input type="text" id="day-comment" placeholder="Notiz hinzufügen (z.B. Systemausfall, hoher Andrang)..." oninput="markUnsavedChanges()">
+                        <input type="text" id="day-comment" placeholder="Notiz hinzufügen (z.B. Server Probleme, Krankheitswelle, Aktionstag)..." oninput="markUnsavedChanges()">
                         <button class="btn-primary" onclick="saveCurrentDayData()" style="white-space: nowrap;">Hinzufügen</button>
                     </div>
                 </div>
@@ -157,33 +157,31 @@
                     </div>
                 </div>
 
-                <!-- KPI Grid für Diagramme -->
+                <!-- KPI Grid für Diagramme mit Abteilungs-Farbgebung -->
                 <div class="kpi-grid">
-                    <div class="kpi-card" id="card-kpi-v">
-                        <div class="kpi-title">VERTRIEB PEAK</div>
+                    <div class="kpi-card" id="card-kpi-v" style="border-left: 4px solid var(--accent-teal);">
+                        <div class="kpi-title" style="color: var(--accent-teal);">VERTRIEB PEAK</div>
                         <div class="kpi-value" id="kpi-v-peak">0 Mails</div>
                         <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="kpi-v-time">-</div>
                     </div>
-                    <div class="kpi-card" id="card-kpi-e">
-                        <div class="kpi-title">EINKAUF PEAK</div>
+                    <div class="kpi-card" id="card-kpi-e" style="border-left: 4px solid var(--accent-blue);">
+                        <div class="kpi-title" style="color: var(--accent-blue);">EINKAUF PEAK</div>
                         <div class="kpi-value" id="kpi-e-peak">0 Mails</div>
                         <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="kpi-e-time">-</div>
                     </div>
-                    <div class="kpi-card" id="card-kpi-r">
-                        <div class="kpi-title">RECHNUNGEN PEAK</div>
+                    <div class="kpi-card" id="card-kpi-r" style="border-left: 4px solid var(--accent-orange);">
+                        <div class="kpi-title" style="color: var(--accent-orange);">RECHNUNGEN PEAK</div>
                         <div class="kpi-value" id="kpi-r-peak">0 Mails</div>
                         <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="kpi-r-time">-</div>
                     </div>
                 </div>
 
-                <h3 style="margin-bottom: 6px; font-size: 18px;">Entwicklung im Zeitraum</h3>
-                <p class="card-desc" style="margin-bottom: 20px;">Grafische Auswertung des Mail- und Ordnerbestands.</p>
-                <div style="position: relative; height: 380px; width: 100%;">
+                <div style="position: relative; height: 380px; width: 100%; margin-top: 20px;">
                     <canvas id="mainAnalysisChart"></canvas>
                 </div>
 
                 <div style="margin-top: 25px;">
-                    <h4 style="font-size: 14px; margin-bottom: 10px; color: var(--text-muted);">Erfasste Notizen im Zeitraum</h4>
+                    <h4 style="font-size: 14px; margin-bottom: 10px; color: var(--text-muted);">Tageskommentare & Besonderheiten im ausgewählten Zeitraum</h4>
                     <div id="analysis-comments-list" class="comments-log-container"></div>
                 </div>
             </div>
@@ -194,7 +192,7 @@
             <div class="card">
                 <div class="filter-bar" style="margin-bottom: 15px;">
                     <div class="control-group">
-                        <label>Auswertungs-Zeitraum</label>gespeicherte
+                        <label>Auswertungs-Zeitraum</label>
                         <select id="advanced-range-picker" onchange="runAdvancedAnalysis()">
                             <option value="kw">Aktuelle KW</option>
                             <option value="month">Aktuelles Jahr</option>
