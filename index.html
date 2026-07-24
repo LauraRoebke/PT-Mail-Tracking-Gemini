@@ -23,7 +23,6 @@
             <div class="brand-subtitle">Ordnerbestände & Peak-Analysen · Vertrieb, Einkauf, Rechnungen</div>
         </div>
         <div class="header-actions">
-            <!-- Versteckter File-Input für Import -->
             <input type="file" id="import-file" style="display:none" accept=".json" onchange="importData(event)">
             
             <button class="icon-btn" onclick="document.getElementById('import-file').click()">📂 Import</button>
@@ -32,10 +31,10 @@
         </div>
     </header>
 
+    <!-- LAYOUT MIT 2 TABS -->
     <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('datenerfassung')">Datenerfassung</button>
-        <button class="tab-btn" onclick="switchTab('diagramme')">Wochen-Analyse</button>
-        <button class="tab-btn" onclick="switchTab('jahrestrend')">📊 Monats- & Jahrestrend</button>
+        <button class="tab-btn" onclick="switchTab('analyse')">📊 Analyse & Diagramme</button>
     </div>
 
     <!-- TAB 1: DATENERFASSUNG -->
@@ -89,7 +88,6 @@
                 </table>
             </div>
 
-            <!-- KOMMENTARFELD PRO TAG -->
             <div class="comment-section">
                 <label for="day-comment">🏷️ Tageskommentar / Besonderheiten (z.B. Systemausfall, Aktionstag, Krankheitswelle):</label>
                 <input type="text" id="day-comment" placeholder="Hinweise zu diesem Tag eintragen..." oninput="markUnsavedChanges()">
@@ -97,73 +95,76 @@
         </div>
     </div>
 
-    <!-- TAB 2: WOCHEN-ANALYSE -->
-    <div id="diagramme" class="tab-content">
+    <!-- TAB 2: ANALYSE & DIAGRAMME -->
+    <div id="analyse" class="tab-content">
         <div class="card">
+            <!-- DYNAMISCHER FILTER-BEREICH -->
             <div class="filter-bar">
                 <div class="control-group">
-                    <label>Auswertungsjahr</label>
-                    <select id="chart-year" onchange="updateCharts()"></select>
+                    <label>Zeitraum-Ansicht</label>
+                    <select id="analysis-view-type" onchange="toggleAnalysisFilterInputs()">
+                        <option value="day">Tag</option>
+                        <option value="week" selected>Woche (KW)</option>
+                        <option value="month">Monat</option>
+                        <option value="year">Jahr</option>
+                    </select>
                 </div>
+
+                <!-- Datumswähler für Tages-, Wochen- und Monatsansicht -->
+                <div class="control-group" id="filter-date-group">
+                    <label id="date-label">Datum auswählen</label>
+                    <input type="date" id="analysis-date-picker" onchange="runAnalysis()">
+                </div>
+
+                <!-- Jahreswähler für Jahresansicht -->
+                <div class="control-group" id="filter-year-group" style="display:none;">
+                    <label>Auswertungsjahr</label>
+                    <select id="analysis-year-picker" onchange="runAnalysis()"></select>
+                </div>
+
                 <div class="control-group">
-                    <label>Auswertungs-KW</label>
-                    <select id="chart-kw" onchange="updateCharts()"></select>
+                    <label>Abteilung</label>
+                    <select id="analysis-dept-filter" onchange="runAnalysis()">
+                        <option value="all">Alle Abteilungen</option>
+                        <option value="vertrieb">Vertrieb & Aftersales</option>
+                        <option value="einkauf">Einkauf</option>
+                        <option value="rechnungen">Rechnungen</option>
+                    </select>
                 </div>
             </div>
 
-            <!-- PEAK-ANZEIGE PRO ABTEILUNG -->
-            <div class="kpi-grid">
-                <div class="kpi-card" style="border-left: 4px solid #1d1f3e;">
+            <!-- PEAK KPI CARDS -->
+            <div class="kpi-grid" id="kpi-container">
+                <div class="kpi-card" id="card-kpi-v" style="border-left: 4px solid #1d1f3e;">
                     <p class="kpi-title">VERTRIEB & AFTERSALES (PEAK)</p>
                     <p class="kpi-value" id="kpi-v-peak">0 Mails</p>
                     <p style="font-size:11px; color:var(--text-muted); margin-top:4px;" id="kpi-v-time">Spitze: -</p>
                 </div>
-                <div class="kpi-card" style="border-left: 4px solid #1aabbb;">
+                <div class="kpi-card" id="card-kpi-e" style="border-left: 4px solid #1aabbb;">
                     <p class="kpi-title">EINKAUF (PEAK)</p>
                     <p class="kpi-value" id="kpi-e-peak">0 Mails</p>
                     <p style="font-size:11px; color:var(--text-muted); margin-top:4px;" id="kpi-e-time">Spitze: -</p>
                 </div>
-                <div class="kpi-card" style="border-left: 4px solid #e07a5f;">
+                <div class="kpi-card" id="card-kpi-r" style="border-left: 4px solid #e07a5f;">
                     <p class="kpi-title">RECHNUNGEN (PEAK)</p>
                     <p class="kpi-value" id="kpi-r-peak">0 Mails</p>
                     <p style="font-size:11px; color:var(--text-muted); margin-top:4px;" id="kpi-r-time">Spitze: -</p>
                 </div>
             </div>
 
-            <div class="charts-grid">
+            <!-- DIAGRAMME CONTAINER -->
+            <div class="charts-grid" style="margin-bottom:24px;">
                 <div class="card" style="margin-bottom:0;">
-                    <h3 style="font-size:14px; margin-bottom:10px; color:var(--text-main);">Max. Ordnerbestand pro Abteilung (KW Peak)</h3>
-                    <div style="max-height:280px; position:relative;">
-                        <canvas id="deptChart"></canvas>
-                    </div>
-                </div>
-                <div class="card" style="margin-bottom:0;">
-                    <h3 style="font-size:14px; margin-bottom:10px; color:var(--text-main);">Durchschnittlicher Tagesverlauf (KW)</h3>
-                    <div style="max-height:280px; position:relative;">
-                        <canvas id="hourlyTrendChart"></canvas>
+                    <h3 style="font-size:14px; margin-bottom:10px; color:var(--text-main);" id="chart-main-title">Entwicklung im Zeitraum</h3>
+                    <div style="height:300px; position:relative;">
+                        <canvas id="mainAnalysisChart"></canvas>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- TAB 3: MONATS- & JAHRESTREND -->
-    <div id="jahrestrend" class="tab-content">
-        <div class="card">
-            <div class="filter-bar">
-                <div class="control-group">
-                    <label>Auswertungsjahr</label>
-                    <select id="trend-year" onchange="updateTrendChart()"></select>
-                </div>
-            </div>
-
-            <h3 style="font-size:15px; margin-bottom:12px; color:var(--text-main);">Maximaler Ordnerbestand im Jahresverlauf (KW 1 – 52)</h3>
-            <div style="height:320px; position:relative; margin-bottom:24px;">
-                <canvas id="yearlyTrendChart"></canvas>
-            </div>
-
-            <h3 style="font-size:15px; margin-bottom:12px; color:var(--text-main);">🏷️ Erfasste Tageskommentare & Notizen in diesem Jahr</h3>
-            <div id="comments-log-list" class="comments-log-container">
+            <!-- KOMMENTAR / NOTIZEN LOGS FÜR DEN GEFILTERTEN ZEITRAUM -->
+            <h3 style="font-size:15px; margin-bottom:12px; color:var(--text-main);">🏷️ Tageskommentare & Besonderheiten im ausgewählten Zeitraum</h3>
+            <div id="analysis-comments-list" class="comments-log-container">
                 <p style="color:var(--text-muted); font-size:13px;">Keine Tagesnotizen vorhanden.</p>
             </div>
         </div>
@@ -174,23 +175,16 @@
     const hours = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
     let store = JSON.parse(localStorage.getItem('email_tracking_db')) || {};
 
-    // DATENSICHERHEIT: Status für ungespeicherte Änderungen
     let isDirty = false;
     let previousYear, previousKW, previousDay;
 
-    function markUnsavedChanges() {
-        isDirty = true;
-    }
+    function markUnsavedChanges() { isDirty = true; }
+    function clearUnsavedChanges() { isDirty = false; }
 
-    function clearUnsavedChanges() {
-        isDirty = false;
-    }
-
-    // Warnung vor Schließen/Reload der Seite
     window.addEventListener('beforeunload', function (e) {
         if (isDirty) {
             e.preventDefault();
-            e.returnValue = ''; // Standard für moderne Browser
+            e.returnValue = '';
         }
     });
 
@@ -204,8 +198,7 @@
         document.getElementById('theme-btn').innerText = newTheme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode';
         
         const activeTab = document.querySelector('.tab-content.active').id;
-        if (activeTab === 'diagramme') updateCharts();
-        if (activeTab === 'jahrestrend') updateTrendChart();
+        if (activeTab === 'analyse') runAnalysis();
     }
 
     (function initTheme() {
@@ -226,41 +219,37 @@
 
     function initSelectors() {
         const yearSelect = document.getElementById('select-year');
-        const chartYearSelect = document.getElementById('chart-year');
-        const trendYearSelect = document.getElementById('trend-year');
         const kwSelect = document.getElementById('select-kw');
-        const chartKwSelect = document.getElementById('chart-kw');
         const daySelect = document.getElementById('select-day');
+        const analysisYearPicker = document.getElementById('analysis-year-picker');
+        const datePicker = document.getElementById('analysis-date-picker');
 
         const now = new Date();
         const currentYear = now.getFullYear();
         const currentKW = getISOWeek(now);
         
+        datePicker.value = now.toISOString().slice(0, 10);
+
         const daysOfWeek = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
         let currentDay = daysOfWeek[now.getDay()];
         if (currentDay === "Sonntag") currentDay = "Montag";
 
         for (let y = currentYear - 2; y <= currentYear + 5; y++) {
             yearSelect.add(new Option(y, y));
-            chartYearSelect.add(new Option(y, y));
-            trendYearSelect.add(new Option(y, y));
+            analysisYearPicker.add(new Option(y, y));
         }
         yearSelect.value = currentYear;
-        chartYearSelect.value = currentYear;
-        trendYearSelect.value = currentYear;
+        analysisYearPicker.value = currentYear;
 
         for (let kw = 1; kw <= 52; kw++) {
             kwSelect.add(new Option('KW ' + kw, kw));
-            chartKwSelect.add(new Option('KW ' + kw, kw));
         }
         kwSelect.value = currentKW;
-        chartKwSelect.value = currentKW;
 
         if ([...daySelect.options].some(opt => opt.value === currentDay)) {
             daySelect.value = currentDay;
         }
 
-        // Aktuelle Werte merken für Sicherheitsabfragen beim Wechseln
         previousYear = yearSelect.value;
         previousKW = kwSelect.value;
         previousDay = daySelect.value;
@@ -320,12 +309,10 @@
         return `${y}_KW${kw}_${day}`;
     }
 
-    // Sicherheitsabfrage vor Selector-Wechsel
     function handleSelectorChange(changedType) {
         if (isDirty) {
             const confirmChange = confirm("⚠️ Du hast ungespeicherte Änderungen für diesen Tag!\n\nMöchtest du den Tag/die KW wirklich wechseln, ohne vorher auf 'Tag Speichern' zu klicken?");
             if (!confirmChange) {
-                // Zurücksetzen auf den vorherigen Wert
                 document.getElementById('select-year').value = previousYear;
                 document.getElementById('select-kw').value = previousKW;
                 document.getElementById('select-day').value = previousDay;
@@ -333,7 +320,6 @@
             }
         }
         
-        // Aktualisieren & Laden
         previousYear = document.getElementById('select-year').value;
         previousKW = document.getElementById('select-kw').value;
         previousDay = document.getElementById('select-day').value;
@@ -359,8 +345,7 @@
         };
 
         localStorage.setItem('email_tracking_db', JSON.stringify(store));
-        
-        clearUnsavedChanges(); // Unspeicher-Status zurücksetzen
+        clearUnsavedChanges();
 
         const btn = document.querySelector('.btn-primary');
         const originalText = btn.innerText;
@@ -443,203 +428,237 @@
         document.getElementById(tabId).classList.add('active');
         event.target.classList.add('active');
 
-        if(tabId === 'diagramme') updateCharts();
-        if(tabId === 'jahrestrend') updateTrendChart();
+        if(tabId === 'analyse') runAnalysis();
     }
 
-    let deptChart, hourlyTrendChart, yearlyTrendChart;
+    /* --- ANALYSE & DIAGRAMME LOGIK --- */
+    function toggleAnalysisFilterInputs() {
+        const viewType = document.getElementById('analysis-view-type').value;
+        const dateGroup = document.getElementById('filter-date-group');
+        const yearGroup = document.getElementById('filter-year-group');
 
-    function updateCharts() {
-        const year = document.getElementById('chart-year').value;
-        const kw = document.getElementById('chart-kw').value;
-        const days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+        if (viewType === 'year') {
+            dateGroup.style.display = 'none';
+            yearGroup.style.display = 'flex';
+        } else {
+            dateGroup.style.display = 'flex';
+            yearGroup.style.display = 'none';
+        }
+        runAnalysis();
+    }
 
-        let peakV = { val: 0, hour: "-", day: "-" };
-        let peakE = { val: 0, hour: "-", day: "-" };
-        let peakR = { val: 0, hour: "-", day: "-" };
+    let mainChart;
 
-        let hourlyV_Sum = new Array(hours.length).fill(0);
-        let hourlyE_Sum = new Array(hours.length).fill(0);
-        let hourlyR_Sum = new Array(hours.length).fill(0);
-        let activeDaysCount = 0;
+    function runAnalysis() {
+        const viewType = document.getElementById('analysis-view-type').value;
+        const selectedDept = document.getElementById('analysis-dept-filter').value;
+        const dateVal = document.getElementById('analysis-date-picker').value;
+        const selectedDate = dateVal ? new Date(dateVal) : new Date();
 
-        days.forEach(day => {
-            const key = `${year}_KW${kw}_${day}`;
+        let labels = [];
+        let datasets = [];
+        let comments = [];
+
+        let peakV = { val: 0, time: '-' }, peakE = { val: 0, time: '-' }, peakR = { val: 0, time: '-' };
+
+        const updatePeaks = (rows, labelContext) => {
+            if (!rows) return;
+            rows.forEach(r => {
+                const v = r.vertrieb || 0, e = r.einkauf || 0, rec = r.rechnungen || 0;
+                if (v > peakV.val) { peakV.val = v; peakV.time = `${labelContext}, ${r.hour} Uhr`; }
+                if (e > peakE.val) { peakE.val = e; peakE.time = `${labelContext}, ${r.hour} Uhr`; }
+                if (rec > peakR.val) { peakR.val = rec; peakR.time = `${labelContext}, ${r.hour} Uhr`; }
+            });
+        };
+
+        const daysList = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+
+        // KPI Visibility steuern je nach Abteilungsfilter
+        document.getElementById('card-kpi-v').style.display = (selectedDept === 'all' || selectedDept === 'vertrieb') ? 'block' : 'none';
+        document.getElementById('card-kpi-e').style.display = (selectedDept === 'all' || selectedDept === 'einkauf') ? 'block' : 'none';
+        document.getElementById('card-kpi-r').style.display = (selectedDept === 'all' || selectedDept === 'rechnungen') ? 'block' : 'none';
+
+        if (viewType === 'day') {
+            // TAGESANSICHT
+            labels = hours;
+            const year = selectedDate.getFullYear();
+            const kw = getISOWeek(selectedDate);
+            const dayNames = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+            let dayName = dayNames[selectedDate.getDay()];
+            if (dayName === "Sonntag") dayName = "Montag";
+
+            const key = `${year}_KW${kw}_${dayName}`;
             const item = store[key];
-            const rows = item ? (Array.isArray(item) ? item : item.rows) : null;
-            
-            if (rows && rows.length > 0) {
-                activeDaysCount++;
-                rows.forEach((row, i) => {
-                    const v = row.vertrieb || 0;
-                    const e = row.einkauf || 0;
-                    const r = row.rechnungen || 0;
+            const rows = item ? (Array.isArray(item) ? item : item.rows) : [];
+            const comment = (item && !Array.isArray(item)) ? item.comment : "";
 
-                    if (v > peakV.val) { peakV.val = v; peakV.hour = row.hour; peakV.day = day; }
-                    if (e > peakE.val) { peakE.val = e; peakE.hour = row.hour; peakE.day = day; }
-                    if (r > peakR.val) { peakR.val = r; peakR.hour = row.hour; peakR.day = day; }
+            if (comment) comments.push({ context: `${dayName} (${selectedDate.toLocaleDateString()})`, comment });
+            updatePeaks(rows, dayName);
 
-                    hourlyV_Sum[i] += v;
-                    hourlyE_Sum[i] += e;
-                    hourlyR_Sum[i] += r;
-                });
-            }
-        });
+            const dataV = hours.map((_, i) => rows[i]?.vertrieb || 0);
+            const dataE = hours.map((_, i) => rows[i]?.einkauf || 0);
+            const dataR = hours.map((_, i) => rows[i]?.rechnungen || 0);
 
-        document.getElementById('kpi-v-peak').innerText = `${peakV.val} Mails`;
-        document.getElementById('kpi-v-time').innerText = peakV.val > 0 ? `Spitze: ${peakV.day}, ${peakV.hour} Uhr` : "Keine Daten";
+            datasets = createDatasets(selectedDept, dataV, dataE, dataR, 'line');
 
-        document.getElementById('kpi-e-peak').innerText = `${peakE.val} Mails`;
-        document.getElementById('kpi-e-time').innerText = peakE.val > 0 ? `Spitze: ${peakE.day}, ${peakE.hour} Uhr` : "Keine Daten";
+        } else if (viewType === 'week') {
+            // WOCHENANSICHT
+            labels = daysList;
+            const year = selectedDate.getFullYear();
+            const kw = getISOWeek(selectedDate);
 
-        document.getElementById('kpi-r-peak').innerText = `${peakR.val} Mails`;
-        document.getElementById('kpi-r-time').innerText = peakR.val > 0 ? `Spitze: ${peakR.day}, ${peakR.hour} Uhr` : "Keine Daten";
+            let dataV = [], dataE = [], dataR = [];
 
-        const divisor = activeDaysCount > 0 ? activeDaysCount : 1;
-        const avgV = hourlyV_Sum.map(v => (v / divisor).toFixed(1));
-        const avgE = hourlyE_Sum.map(e => (e / divisor).toFixed(1));
-        const avgR = hourlyR_Sum.map(r => (r / divisor).toFixed(1));
-
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        const textColor = isDark ? '#f0f1f5' : '#2d2f36';
-        const gridColor = isDark ? '#2c303c' : '#e3dfd7';
-
-        if (deptChart) deptChart.destroy();
-        const ctx1 = document.getElementById('deptChart').getContext('2d');
-        deptChart = new Chart(ctx1, {
-            type: 'bar',
-            data: {
-                labels: ['Vertrieb & Aftersales', 'Einkauf', 'Rechnungen'],
-                datasets: [{
-                    label: 'Höchster Ordnerstand (Peak)',
-                    data: [peakV.val, peakE.val, peakR.val],
-                    backgroundColor: ['#1d1f3e', '#1aabbb', '#e07a5f'],
-                    borderRadius: 8
-                }]
-            },
-            options: { 
-                responsive: true, 
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { ticks: { color: textColor }, grid: { display: false } },
-                    y: { ticks: { color: textColor }, grid: { color: gridColor }, title: { display: true, text: 'Mails im Ordner', color: textColor } }
-                }
-            }
-        });
-
-        if (hourlyTrendChart) hourlyTrendChart.destroy();
-        const ctx2 = document.getElementById('hourlyTrendChart').getContext('2d');
-        hourlyTrendChart = new Chart(ctx2, {
-            type: 'line',
-            data: {
-                labels: hours,
-                datasets: [
-                    { label: 'Vertrieb & Aftersales', data: avgV, borderColor: '#1d1f3e', backgroundColor: '#1d1f3e', tension: 0.3, borderWidth: 2.5, pointRadius: 4 },
-                    { label: 'Einkauf', data: avgE, borderColor: '#1aabbb', backgroundColor: '#1aabbb', tension: 0.3, borderWidth: 2.5, pointRadius: 4 },
-                    { label: 'Rechnungen', data: avgR, borderColor: '#e07a5f', backgroundColor: '#e07a5f', tension: 0.3, borderWidth: 2.5, pointRadius: 4 }
-                ]
-            },
-            options: { 
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { 
-                    legend: { 
-                        display: true, position: 'top',
-                        labels: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 12, weight: '600' }, usePointStyle: true, boxWidth: 8 }
-                    } 
-                },
-                scales: {
-                    x: { ticks: { color: textColor }, grid: { display: false } },
-                    y: { ticks: { color: textColor }, grid: { color: gridColor } }
-                }
-            }
-        });
-    }
-
-    function updateTrendChart() {
-        const year = document.getElementById('trend-year').value;
-        const kwLabels = [];
-        const peakV_KW = [];
-        const peakE_KW = [];
-        const peakR_KW = [];
-        const commentsLog = [];
-
-        const days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
-
-        for (let kw = 1; kw <= 52; kw++) {
-            kwLabels.push(`KW ${kw}`);
-            let maxV = 0, maxE = 0, maxR = 0;
-
-            days.forEach(day => {
+            daysList.forEach(day => {
                 const key = `${year}_KW${kw}_${day}`;
                 const item = store[key];
-                
-                if (item) {
-                    const rows = Array.isArray(item) ? item : item.rows;
-                    const comment = !Array.isArray(item) ? item.comment : "";
+                const rows = item ? (Array.isArray(item) ? item : item.rows) : [];
+                const comment = (item && !Array.isArray(item)) ? item.comment : "";
 
-                    if (rows) {
-                        rows.forEach(r => {
-                            if ((r.vertrieb || 0) > maxV) maxV = r.vertrieb;
-                            if ((r.einkauf || 0) > maxE) maxE = r.einkauf;
-                            if ((r.rechnungen || 0) > maxR) maxR = r.rechnungen;
-                        });
-                    }
+                if (comment) comments.push({ context: `${day} (KW ${kw})`, comment });
+                updatePeaks(rows, day);
 
-                    if (comment && comment.trim() !== "") {
-                        commentsLog.push({ kw, day, comment });
-                    }
+                let maxV = 0, maxE = 0, maxR = 0;
+                if (rows) {
+                    rows.forEach(r => {
+                        if ((r.vertrieb || 0) > maxV) maxV = r.vertrieb;
+                        if ((r.einkauf || 0) > maxE) maxE = r.einkauf;
+                        if ((r.rechnungen || 0) > maxR) maxR = r.rechnungen;
+                    });
                 }
+                dataV.push(maxV); dataE.push(maxE); dataR.push(maxR);
             });
 
-            peakV_KW.push(maxV);
-            peakE_KW.push(maxE);
-            peakR_KW.push(maxR);
+            datasets = createDatasets(selectedDept, dataV, dataE, dataR, 'bar');
+
+        } else if (viewType === 'month') {
+            // MONATSANSICHT (Aggregiert auf Wochen im Monat)
+            const year = selectedDate.getFullYear();
+            const month = selectedDate.getMonth();
+            labels = ["Woche 1", "Woche 2", "Woche 3", "Woche 4", "Woche 5"];
+
+            let dataV = new Array(5).fill(0), dataE = new Array(5).fill(0), dataR = new Array(5).fill(0);
+
+            for (let kw = 1; kw <= 52; kw++) {
+                daysList.forEach(day => {
+                    const key = `${year}_KW${kw}_${day}`;
+                    const item = store[key];
+                    if (item) {
+                        const comment = !Array.isArray(item) ? item.comment : "";
+                        const rows = Array.isArray(item) ? item : item.rows;
+
+                        // Einfache Zuordnung von KW zu Monatswoche
+                        const weekIdx = Math.min(Math.floor((kw % 4.3)), 4);
+
+                        if (comment) comments.push({ context: `KW ${kw} (${day})`, comment });
+                        updatePeaks(rows, `KW ${kw}`);
+
+                        if (rows) {
+                            rows.forEach(r => {
+                                if ((r.vertrieb || 0) > dataV[weekIdx]) dataV[weekIdx] = r.vertrieb;
+                                if ((r.einkauf || 0) > dataE[weekIdx]) dataE[weekIdx] = r.einkauf;
+                                if ((r.rechnungen || 0) > dataR[weekIdx]) dataR[weekIdx] = r.rechnungen;
+                            });
+                        }
+                    }
+                });
+            }
+
+            datasets = createDatasets(selectedDept, dataV, dataE, dataR, 'bar');
+
+        } else if (viewType === 'year') {
+            // JAHRESANSICHT (KW 1 – 52)
+            const year = document.getElementById('analysis-year-picker').value;
+            labels = Array.from({ length: 52 }, (_, i) => `KW ${i + 1}`);
+
+            let dataV = [], dataE = [], dataR = [];
+
+            for (let kw = 1; kw <= 52; kw++) {
+                let maxV = 0, maxE = 0, maxR = 0;
+                daysList.forEach(day => {
+                    const key = `${year}_KW${kw}_${day}`;
+                    const item = store[key];
+                    if (item) {
+                        const comment = !Array.isArray(item) ? item.comment : "";
+                        const rows = Array.isArray(item) ? item : item.rows;
+
+                        if (comment) comments.push({ context: `KW ${kw} (${day})`, comment });
+                        updatePeaks(rows, `KW ${kw}`);
+
+                        if (rows) {
+                            rows.forEach(r => {
+                                if ((r.vertrieb || 0) > maxV) maxV = r.vertrieb;
+                                if ((r.einkauf || 0) > maxE) maxE = r.einkauf;
+                                if ((r.rechnungen || 0) > maxR) maxR = r.rechnungen;
+                            });
+                        }
+                    }
+                });
+                dataV.push(maxV); dataE.push(maxE); dataR.push(maxR);
+            }
+
+            datasets = createDatasets(selectedDept, dataV, dataE, dataR, 'bar');
         }
 
-        const commentBox = document.getElementById('comments-log-list');
-        commentBox.innerHTML = '';
-        if (commentsLog.length === 0) {
-            commentBox.innerHTML = `<p style="color:var(--text-muted); font-size:13px;">Keine Tagesnotizen für das Jahr ${year} erfasst.</p>`;
+        // KPI UI setzen
+        document.getElementById('kpi-v-peak').innerText = `${peakV.val} Mails`;
+        document.getElementById('kpi-v-time').innerText = peakV.val > 0 ? `Spitze: ${peakV.time}` : "Keine Daten";
+        document.getElementById('kpi-e-peak').innerText = `${peakE.val} Mails`;
+        document.getElementById('kpi-e-time').innerText = peakE.val > 0 ? `Spitze: ${peakE.time}` : "Keine Daten";
+        document.getElementById('kpi-r-peak').innerText = `${peakR.val} Mails`;
+        document.getElementById('kpi-r-time').innerText = peakR.val > 0 ? `Spitze: ${peakR.time}` : "Keine Daten";
+
+        // Kommentarliste Rendern
+        const commentsContainer = document.getElementById('analysis-comments-list');
+        commentsContainer.innerHTML = '';
+        if (comments.length === 0) {
+            commentsContainer.innerHTML = `<p style="color:var(--text-muted); font-size:13px;">Keine Tagesnotizen in dieser Auswahl erfasst.</p>`;
         } else {
-            commentsLog.forEach(log => {
-                const div = document.createElement('div');
-                div.className = 'comment-item';
-                div.innerHTML = `<strong>KW ${log.kw} (${log.day}):</strong> ${log.comment}`;
-                commentBox.appendChild(div);
+            comments.forEach(c => {
+                const item = document.createElement('div');
+                item.className = 'comment-item';
+                item.innerHTML = `<strong>${c.context}:</strong> ${c.comment}`;
+                commentsContainer.appendChild(item);
             });
         }
 
+        // Chart zeichnen
+        renderMainChart(labels, datasets, viewType === 'day' ? 'line' : 'bar');
+    }
+
+    function createDatasets(dept, v, e, r, defaultType) {
+        const ds = [];
+        if (dept === 'all' || dept === 'vertrieb') {
+            ds.push({ label: 'Vertrieb & Aftersales', data: v, backgroundColor: '#1d1f3e', borderColor: '#1d1f3e', tension: 0.3 });
+        }
+        if (dept === 'all' || dept === 'einkauf') {
+            ds.push({ label: 'Einkauf', data: e, backgroundColor: '#1aabbb', borderColor: '#1aabbb', tension: 0.3 });
+        }
+        if (dept === 'all' || dept === 'rechnungen') {
+            ds.push({ label: 'Rechnungen', data: r, backgroundColor: '#e07a5f', borderColor: '#e07a5f', tension: 0.3 });
+        }
+        return ds;
+    }
+
+    function renderMainChart(labels, datasets, chartType) {
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
         const textColor = isDark ? '#f0f1f5' : '#2d2f36';
         const gridColor = isDark ? '#2c303c' : '#e3dfd7';
 
-        if (yearlyTrendChart) yearlyTrendChart.destroy();
-        const ctx3 = document.getElementById('yearlyTrendChart').getContext('2d');
-        yearlyTrendChart = new Chart(ctx3, {
-            type: 'bar',
-            data: {
-                labels: kwLabels,
-                datasets: [
-                    { label: 'Vertrieb & Aftersales', data: peakV_KW, backgroundColor: '#1d1f3e' },
-                    { label: 'Einkauf', data: peakE_KW, backgroundColor: '#1aabbb' },
-                    { label: 'Rechnungen', data: peakR_KW, backgroundColor: '#e07a5f' }
-                ]
-            },
+        if (mainChart) mainChart.destroy();
+        const ctx = document.getElementById('mainAnalysisChart').getContext('2d');
+        mainChart = new Chart(ctx, {
+            type: chartType,
+            data: { labels, datasets },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top',
-                        labels: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 12, weight: '600' } }
-                    }
+                    legend: { display: true, position: 'top', labels: { color: textColor, font: { family: 'Plus Jakarta Sans', weight: '600' } } }
                 },
                 scales: {
-                    x: { ticks: { color: textColor, maxRotation: 0, autoSkip: true, maxTicksLimit: 26 }, grid: { display: false } },
-                    y: { ticks: { color: textColor }, grid: { color: gridColor }, title: { display: true, text: 'Max. Ordnerbestand (Peak)', color: textColor } }
+                    x: { ticks: { color: textColor }, grid: { display: false } },
+                    y: { ticks: { color: textColor }, grid: { color: gridColor }, title: { display: true, text: 'Mails / Ordnerbestand', color: textColor } }
                 }
             }
         });
