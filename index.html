@@ -44,15 +44,15 @@
             <div class="filter-bar">
                 <div class="control-group">
                     <label>Jahr</label>
-                    <select id="select-year" onchange="loadTableData()"></select>
+                    <select id="select-year" onchange="handleSelectorChange('year')"></select>
                 </div>
                 <div class="control-group">
                     <label>Kalenderwoche</label>
-                    <select id="select-kw" onchange="loadTableData()"></select>
+                    <select id="select-kw" onchange="handleSelectorChange('kw')"></select>
                 </div>
                 <div class="control-group">
                     <label>Wochentag</label>
-                    <select id="select-day" onchange="loadTableData()">
+                    <select id="select-day" onchange="handleSelectorChange('day')">
                         <option value="Montag">Montag</option>
                         <option value="Dienstag">Dienstag</option>
                         <option value="Mittwoch">Mittwoch</option>
@@ -92,7 +92,7 @@
             <!-- KOMMENTARFELD PRO TAG -->
             <div class="comment-section">
                 <label for="day-comment">🏷️ Tageskommentar / Besonderheiten (z.B. Systemausfall, Aktionstag, Krankheitswelle):</label>
-                <input type="text" id="day-comment" placeholder="Hinweise zu diesem Tag eintragen..." onchange="autoSaveComment()">
+                <input type="text" id="day-comment" placeholder="Hinweise zu diesem Tag eintragen..." oninput="markUnsavedChanges()">
             </div>
         </div>
     </div>
@@ -174,6 +174,26 @@
     const hours = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
     let store = JSON.parse(localStorage.getItem('email_tracking_db')) || {};
 
+    // DATENSICHERHEIT: Status für ungespeicherte Änderungen
+    let isDirty = false;
+    let previousYear, previousKW, previousDay;
+
+    function markUnsavedChanges() {
+        isDirty = true;
+    }
+
+    function clearUnsavedChanges() {
+        isDirty = false;
+    }
+
+    // Warnung vor Schließen/Reload der Seite
+    window.addEventListener('beforeunload', function (e) {
+        if (isDirty) {
+            e.preventDefault();
+            e.returnValue = ''; // Standard für moderne Browser
+        }
+    });
+
     function toggleTheme() {
         const html = document.documentElement;
         const currentTheme = html.getAttribute('data-theme');
@@ -239,6 +259,11 @@
         if ([...daySelect.options].some(opt => opt.value === currentDay)) {
             daySelect.value = currentDay;
         }
+
+        // Aktuelle Werte merken für Sicherheitsabfragen beim Wechseln
+        previousYear = yearSelect.value;
+        previousKW = kwSelect.value;
+        previousDay = daySelect.value;
     }
 
     function renderTable() {
@@ -249,9 +274,9 @@
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${h} Uhr</td>
-                <td><input type="number" min="0" id="v_${index}" value="0" onkeydown="handleTableNavigation(event, 'v', ${index})" onchange="calculateSums()"></td>
-                <td><input type="number" min="0" id="e_${index}" value="0" onkeydown="handleTableNavigation(event, 'e', ${index})" onchange="calculateSums()"></td>
-                <td><input type="number" min="0" id="r_${index}" value="0" onkeydown="handleTableNavigation(event, 'r', ${index})" onchange="calculateSums()"></td>
+                <td><input type="number" min="0" id="v_${index}" value="0" oninput="markUnsavedChanges()" onkeydown="handleTableNavigation(event, 'v', ${index})" onchange="calculateSums()"></td>
+                <td><input type="number" min="0" id="e_${index}" value="0" oninput="markUnsavedChanges()" onkeydown="handleTableNavigation(event, 'e', ${index})" onchange="calculateSums()"></td>
+                <td><input type="number" min="0" id="r_${index}" value="0" oninput="markUnsavedChanges()" onkeydown="handleTableNavigation(event, 'r', ${index})" onchange="calculateSums()"></td>
             `;
             tbody.appendChild(tr);
         });
@@ -295,6 +320,28 @@
         return `${y}_KW${kw}_${day}`;
     }
 
+    // Sicherheitsabfrage vor Selector-Wechsel
+    function handleSelectorChange(changedType) {
+        if (isDirty) {
+            const confirmChange = confirm("⚠️ Du hast ungespeicherte Änderungen für diesen Tag!\n\nMöchtest du den Tag/die KW wirklich wechseln, ohne vorher auf 'Tag Speichern' zu klicken?");
+            if (!confirmChange) {
+                // Zurücksetzen auf den vorherigen Wert
+                document.getElementById('select-year').value = previousYear;
+                document.getElementById('select-kw').value = previousKW;
+                document.getElementById('select-day').value = previousDay;
+                return;
+            }
+        }
+        
+        // Aktualisieren & Laden
+        previousYear = document.getElementById('select-year').value;
+        previousKW = document.getElementById('select-kw').value;
+        previousDay = document.getElementById('select-day').value;
+        
+        clearUnsavedChanges();
+        loadTableData();
+    }
+
     function saveCurrentDayData() {
         const key = getKey();
         const comment = document.getElementById('day-comment').value.trim();
@@ -313,6 +360,8 @@
 
         localStorage.setItem('email_tracking_db', JSON.stringify(store));
         
+        clearUnsavedChanges(); // Unspeicher-Status zurücksetzen
+
         const btn = document.querySelector('.btn-primary');
         const originalText = btn.innerText;
         btn.innerText = "✓ Gespeichert";
@@ -321,10 +370,6 @@
             btn.innerText = originalText;
             btn.style.background = "var(--accent-teal)";
         }, 1800);
-    }
-
-    function autoSaveComment() {
-        saveCurrentDayData();
     }
 
     function resetCurrentDayData() {
@@ -349,7 +394,7 @@
 
         if (storedObject) {
             if (Array.isArray(storedObject)) {
-                rows = storedObject; // Abwärtskompatibilität für altes Datenformat
+                rows = storedObject;
             } else {
                 rows = storedObject.rows || [];
                 comment = storedObject.comment || "";
@@ -365,6 +410,7 @@
 
         document.getElementById('day-comment').value = comment;
         calculateSums();
+        clearUnsavedChanges();
     }
 
     function calculateSums() {
@@ -386,6 +432,11 @@
     }
 
     function switchTab(tabId) {
+        if (isDirty && tabId !== 'datenerfassung') {
+            const confirmTabSwitch = confirm("⚠️ Du hast ungespeicherte Änderungen für diesen Tag!\n\nMöchtest du die Seite wirklich wechseln, ohne vorher auf 'Tag Speichern' zu klicken?");
+            if (!confirmTabSwitch) return;
+        }
+
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         
@@ -506,7 +557,6 @@
         });
     }
 
-    /* NEU: JAHRESTREND CHART & NOTIZEN-LOG */
     function updateTrendChart() {
         const year = document.getElementById('trend-year').value;
         const kwLabels = [];
@@ -548,7 +598,6 @@
             peakR_KW.push(maxR);
         }
 
-        // Kommentar-Log Rendern
         const commentBox = document.getElementById('comments-log-list');
         commentBox.innerHTML = '';
         if (commentsLog.length === 0) {
