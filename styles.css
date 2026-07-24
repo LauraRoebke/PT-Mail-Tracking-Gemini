@@ -149,7 +149,7 @@ header {
     letter-spacing: 0.6px;
 }
 
-select {
+select, input[type="date"] {
     background: var(--input-bg);
     border: 1px solid var(--border-color);
     color: var(--text-main);
@@ -159,6 +159,7 @@ select {
     font-weight: 600;
     outline: none;
     min-width: 140px;
+    font-family: inherit;
 }
 
 .button-group {
@@ -335,16 +336,7 @@ select {
     margin-top: 4px;
 }
 
-.charts-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-}
-
 @media (max-width: 900px) {
-    .charts-grid {
-        grid-template-columns: 1fr;
-    }
     .kpi-grid {
         grid-template-columns: 1fr;
     }
