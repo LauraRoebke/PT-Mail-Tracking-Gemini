@@ -29,7 +29,7 @@ function toggleTheme() {
 }
 
 (function initTheme() {
-    const savedTheme = localStorage.getItem('theme') || 'light';
+    const savedTheme = localStorage.getItem('theme') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
     setTimeout(() => {
         document.getElementById('theme-btn').innerText = savedTheme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode';
@@ -623,7 +623,6 @@ function runAnalysis() {
         prevPeriodTotalSum = prevYearTotal > 0 ? prevYearTotal : currentPeriodTotalSum;
     }
 
-    // Diagramm-Untertitel Trend aktualisieren
     let diffPercent = 0;
     if (prevPeriodTotalSum > 0) {
         diffPercent = Math.round(((currentPeriodTotalSum - prevPeriodTotalSum) / prevPeriodTotalSum) * 100);
@@ -658,23 +657,28 @@ function runAnalysis() {
 }
 
 function createDatasets(dept, v, e, r) {
+    const rootStyles = getComputedStyle(document.documentElement);
+    const colV = rootStyles.getPropertyValue('--accent-vertrieb').trim();
+    const colE = rootStyles.getPropertyValue('--accent-einkauf').trim();
+    const colR = rootStyles.getPropertyValue('--accent-rechnungen').trim();
+
     const ds = [];
     if (dept === 'all' || dept === 'vertrieb') {
-        ds.push({ label: 'Vertrieb & Aftersales', data: v, backgroundColor: '#1d1f3e', borderColor: '#1d1f3e', tension: 0.3 });
+        ds.push({ label: 'Vertrieb & Aftersales', data: v, backgroundColor: colV, borderColor: colV, tension: 0.3 });
     }
     if (dept === 'all' || dept === 'einkauf') {
-        ds.push({ label: 'Einkauf', data: e, backgroundColor: '#1aabbb', borderColor: '#1aabbb', tension: 0.3 });
+        ds.push({ label: 'Einkauf', data: e, backgroundColor: colE, borderColor: colE, tension: 0.3 });
     }
     if (dept === 'all' || dept === 'rechnungen') {
-        ds.push({ label: 'Rechnungen', data: r, backgroundColor: '#e07a5f', borderColor: '#e07a5f', tension: 0.3 });
+        ds.push({ label: 'Rechnungen', data: r, backgroundColor: colR, borderColor: colR, tension: 0.3 });
     }
     return ds;
 }
 
 function renderMainChart(labels, datasets, chartType, indexCommentsMap) {
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const textColor = isDark ? '#f0f1f5' : '#2d2f36';
-    const gridColor = isDark ? '#2c303c' : '#e3dfd7';
+    const textColor = isDark ? '#f4f4f5' : '#2d2f36';
+    const gridColor = isDark ? '#27272a' : '#e3dfd7';
 
     if (mainChart) mainChart.destroy();
     const ctx = document.getElementById('mainAnalysisChart').getContext('2d');
@@ -800,9 +804,8 @@ function runAdvancedAnalysis() {
         }
     });
 
-    // Hilfsfunktion für Vorwochen-Badge (Grün = gut/Reduktion oder Zuwachs je nach Kontext)
     const badgeHtml = (val, isPositiveGood = false) => {
-        const color = (val === 0) ? '#718096' : ((val > 0 && isPositiveGood) || (val < 0 && !isPositiveGood) ? '#38a169' : '#e53e3e');
+        const color = (val === 0) ? '#a1a1aa' : ((val > 0 && isPositiveGood) || (val < 0 && !isPositiveGood) ? '#10b981' : '#f43f5e');
         const sign = val > 0 ? '+' : '';
         return `<span style="font-size:11px; padding:2px 6px; border-radius:4px; background:${color}22; color:${color}; font-weight:700; margin-left:8px;">${sign}${val}% vs. Vorwoche</span>`;
     };
@@ -820,19 +823,24 @@ function runAdvancedAnalysis() {
     const shareE = grandTotal > 0 ? Math.round((totalE / grandTotal) * 100) : 0;
     const shareR = grandTotal > 0 ? Math.round((totalR / grandTotal) * 100) : 0;
 
+    const rootStyles = getComputedStyle(document.documentElement);
+    const colV = rootStyles.getPropertyValue('--accent-vertrieb').trim();
+    const colE = rootStyles.getPropertyValue('--accent-einkauf').trim();
+    const colR = rootStyles.getPropertyValue('--accent-rechnungen').trim();
+
     const deptShareContainer = document.getElementById('dept-share-list');
     deptShareContainer.innerHTML = `
         <div class="progress-item">
             <div class="progress-labels"><span>Vertrieb & Aftersales</span><span>${shareV}%</span></div>
-            <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${shareV}%; background:#1d1f3e;"></div></div>
+            <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${shareV}%; background:${colV};"></div></div>
         </div>
         <div class="progress-item">
             <div class="progress-labels"><span>Einkauf</span><span>${shareE}%</span></div>
-            <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${shareE}%; background:#1aabbb;"></div></div>
+            <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${shareE}%; background:${colE};"></div></div>
         </div>
         <div class="progress-item">
             <div class="progress-labels"><span>Rechnungen</span><span>${shareR}%</span></div>
-            <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${shareR}%; background:#e07a5f;"></div></div>
+            <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${shareR}%; background:${colR};"></div></div>
         </div>
     `;
 
